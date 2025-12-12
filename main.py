@@ -246,15 +246,19 @@ def search():
     if db is not None:
         # Simple regex search
         products = list(db.products.find({"product_name": {"$regex": query, "$options": "i"}}))
+        seen_names = set()
         for p in products:
-            results.append({
-                "id": str(p.get('_id')),
-                "name": p.get('product_name'),
-                "price": p.get('product_price'),
-                "image": p.get('image', '/static/images/placeholder.svg'),
-                "description": p.get('description', ''),
-                "location": p.get("location", "") 
-            })
+            name = p.get('product_name')
+            if name not in seen_names:
+                results.append({
+                    "id": str(p.get('_id')),
+                    "name": name,
+                    "price": p.get('product_price'),
+                    "image": p.get('image', '/static/images/placeholder.svg'),
+                    "description": p.get('description', ''),
+                    "location": p.get("location", "") 
+                })
+                seen_names.add(name)
     return jsonify(results)
 
 @app.route('/recommended', methods=['GET'])
