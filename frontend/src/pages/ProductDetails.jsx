@@ -34,32 +34,63 @@ const ProductDetails = () => {
     if (!product) return <div style={{ color: 'white', textAlign: 'center', marginTop: '50px' }}>Product not found. <Link to="/search" style={{ color: '#fff', textDecoration: 'underline' }}>Go back</Link></div>;
 
     return (
-        <div className="container fade-in" style={{ paddingTop: '50px', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
-            <div className="card" style={{ backgroundColor: 'white', display: 'flex', flexDirection: 'column', maxWidth: '800px', width: '100%', position: 'relative' }}>
-                <Link to="/search" style={{ position: 'absolute', top: '20px', left: '20px', fontSize: '1.5rem', color: '#333' }}>&larr;</Link>
+        <div className="container fade-in" style={{ paddingTop: '20px', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+            <div className="card" style={{ backgroundColor: 'white', display: 'flex', flexDirection: 'column', maxWidth: '1000px', width: '100%', position: 'relative', padding: '30px' }}>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px', padding: '20px' }}>
-                    <div style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                        <img
-                            src={product.image}
-                            alt={product.name}
-                            style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '10px' }}
-                            onError={(e) => { e.target.src = '/static/images/placeholder.svg'; }}
-                        />
+                {/* Header Title */}
+                <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '30px' }}>
+                    Product Location: {product.location || 'Unknown Shelf'}
+                </h2>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px' }}>
+
+                    {/* Left Side: Shelf Grid */}
+                    <div style={{ flex: '2 1 500px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px' }}>
+                            {/* Create a 5x4 grid (20 slots) as a visual representation */}
+                            {[...Array(20)].map((_, i) => {
+                                // Simple logic to determine "active" shelf based on location string or index
+                                // For now, let's say the product is at index 5 (Shelf 2, Row 1) or parse 'Shelf 3'
+                                const shelfNum = parseInt(product.location?.replace('Shelf ', '') || '0');
+                                const isActive = (i + 1) === shelfNum || (i === 5); // Example: Highlight 6th box as demo if parsing fails
+
+                                return (
+                                    <div
+                                        key={i}
+                                        style={{
+                                            height: '80px',
+                                            backgroundColor: isActive ? '#3498db' : '#ecf0f1',
+                                            borderRadius: '8px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: isActive ? 'white' : '#bdc3c7',
+                                            fontWeight: 'bold',
+                                            border: isActive ? '2px solid #2980b9' : 'none'
+                                        }}
+                                    >
+                                        {isActive ? <img src={product.image} alt="" style={{ height: '60px', objectFit: 'contain' }} /> : `Slot ${i + 1}`}
+                                    </div>
+                                )
+                            })}
+                        </div>
                     </div>
 
-                    <div style={{ flex: '1 1 300px' }}>
-                        <h1 style={{ color: '#2c3e50', marginBottom: '10px' }}>{product.name}</h1>
-                        <p style={{ fontSize: '1.5rem', color: '#e74c3c', fontWeight: 'bold', marginBottom: '20px' }}>₹{product.price}</p>
-
-                        <div style={{ marginBottom: '30px' }}>
-                            <h3 style={{ borderBottom: '2px solid #3498db', paddingBottom: '10px', display: 'inline-block' }}>Description</h3>
-                            <p style={{ lineHeight: '1.6', color: '#555', marginTop: '10px' }}>{product.description}</p>
+                    {/* Right Side / Bottom: Product Info & Action */}
+                    <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                        <div>
+                            <h1 style={{ color: '#2c3e50', fontSize: '1.8rem' }}>{product.name}</h1>
+                            <p style={{ fontSize: '1.5rem', color: '#e74c3c', fontWeight: 'bold' }}>₹{product.price}</p>
+                            <p style={{ color: '#7f8c8d' }}>{product.description}</p>
                         </div>
 
-                        <div style={{ backgroundColor: '#ecf0f1', padding: '20px', borderRadius: '8px' }}>
-                            <h3 style={{ margin: 0, marginBottom: '10px', color: '#34495e' }}>Location</h3>
-                            <p style={{ fontSize: '1.2rem', color: '#2980b9' }}>📍 {product.location}</p>
+                        <div style={{ marginTop: '30px', textAlign: 'center' }}>
+                            <Link to="/scanner" className="btn btn-primary" style={{ display: 'block', width: '100%', padding: '15px', fontSize: '1.2rem' }}>
+                                Go to Scanning
+                            </Link>
+                            <div style={{ marginTop: '10px' }}>
+                                <Link to="/search" style={{ color: '#95a5a6' }}>Back to Gallery</Link>
+                            </div>
                         </div>
                     </div>
                 </div>

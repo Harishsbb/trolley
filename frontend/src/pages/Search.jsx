@@ -57,14 +57,16 @@ const Search = () => {
                     {products.map((product) => (
                         <div key={product.id} className="card fade-in" style={{ backgroundColor: 'white', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'transform 0.3s' }}>
                             <img
-                                src={product.image.startsWith('http') ? product.image : `http://localhost:5000${product.image}`}
+                                src={product.image}
                                 alt={product.name}
                                 style={{ width: '150px', height: '150px', objectFit: 'contain', marginBottom: '15px' }}
-                                onError={(e) => { e.target.src = 'https://placehold.co/150x150?text=No+Image'; }}
+                                onError={(e) => { e.target.src = '/static/images/placeholder.svg'; }}
                             />
                             <h3 style={{ fontSize: '1.2rem', margin: '10px 0', textAlign: 'center', color: '#333' }}>{product.name}</h3>
                             <p style={{ color: '#e74c3c', fontWeight: 'bold', fontSize: '1.1rem' }}>₹{product.price}</p>
-                            <Link to={`/product/${product.id}`} className="btn btn-primary" style={{ marginTop: 'auto', width: '100%' }}>View Details</Link>
+                            <Link to={`/product/${product.id}`} className="btn btn-primary" style={{ marginTop: 'auto', width: '100%' }}>
+                                View Shelf
+                            </Link>
                         </div>
                     ))}
                     {products.length === 0 && (
