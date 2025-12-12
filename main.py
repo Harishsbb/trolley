@@ -247,18 +247,32 @@ def search():
         # Simple regex search
         products = list(db.products.find({"product_name": {"$regex": query, "$options": "i"}}))
         seen_names = set()
+        
         for p in products:
-            name = p.get('product_name')
-            if name not in seen_names:
+            raw_name = p.get('product_name', '')
+            # Normalize for duplicate check
+            norm_name = raw_name.strip()
+            
+            if norm_name and norm_name not in seen_names:
                 results.append({
                     "id": str(p.get('_id')),
-                    "name": name,
+                    "name": raw_name, # Keep original name for display
                     "price": p.get('product_price'),
                     "image": p.get('image', '/static/images/placeholder.svg'),
                     "description": p.get('description', ''),
                     "location": p.get("location", "") 
                 })
-                seen_names.add(name)
+                seen_names.add(norm_name)
+    
+    # Sort results: Exact matches or "Starts with" query go to top
+    if query:
+        q_lower = query.lower()
+        results.sort(key=lambda x: (
+            0 if x['name'].lower() == q_lower else
+            1 if x['name'].lower().startswith(q_lower) else
+            2
+        ))
+        
     return jsonify(results)
 
 @app.route('/recommended', methods=['GET'])

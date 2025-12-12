@@ -47,28 +47,30 @@ const ProductDetails = () => {
                 flexDirection: 'column',
                 maxWidth: '1200px',
                 width: '95%',
-                height: '85vh', // Fixed height for "full page" feel
+                height: '92vh', // Tweak height
                 position: 'relative',
                 padding: '30px',
                 overflow: 'hidden'
             }}>
 
                 {/* Header Title */}
-                <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '20px', fontSize: '2rem' }}>
+                <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '20px', fontSize: '2rem', flexShrink: 0 }}>
                     Product Location: {product.location || 'Section A'}
                 </h2>
 
-                <div style={{ display: 'flex', flex: 1, gap: '40px', height: '100%' }}>
+                <div style={{ display: 'flex', flex: 1, gap: '40px', height: '100%', overflow: 'hidden' }}>
 
                     {/* Left Side: Shelf Grid */}
-                    <div style={{ flex: '2 1 600px', height: '100%' }}>
+                    <div style={{ flex: '2 1 600px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <div style={{
                             display: 'grid',
                             gridTemplateColumns: 'repeat(5, 1fr)',
-                            gridTemplateRows: 'repeat(4, 1fr)', // Fixed rows
+                            gridTemplateRows: 'repeat(4, 1fr)',
                             gap: '15px',
+                            width: '100%',
                             height: '100%',
-                            maxHeight: '100%'
+                            maxHeight: '100%',
+                            aspectRatio: '5/4' // Keeps shape
                         }}>
                             {/* Create a 5x4 grid (20 slots) */}
                             {[...Array(20)].map((_, i) => {
@@ -91,14 +93,24 @@ const ProductDetails = () => {
                                             border: isActive ? '4px solid #2980b9' : '1px solid #dcdcdc',
                                             position: 'relative',
                                             boxShadow: isActive ? '0 0 20px rgba(52, 152, 219, 0.6)' : 'none',
-                                            transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                                            transform: isActive ? 'scale(1.02)' : 'scale(1)', // Reduced scale
                                             transition: 'all 0.3s ease',
-                                            zIndex: isActive ? 10 : 1
+                                            zIndex: isActive ? 10 : 1,
+                                            overflow: 'hidden' // Important!
                                         }}
                                     >
                                         {isActive ? (
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', height: '100%', padding: '5px', justifyContent: 'center' }}>
-                                                <img src={product.image} alt="" style={{ height: '70%', objectFit: 'contain', filter: 'drop-shadow(0 5px 5px rgba(0,0,0,0.2))' }} />
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', padding: '5px' }}>
+                                                <img
+                                                    src={product.image}
+                                                    alt=""
+                                                    style={{
+                                                        maxWidth: '80%',
+                                                        maxHeight: '80%',
+                                                        objectFit: 'contain',
+                                                        filter: 'drop-shadow(0 5px 5px rgba(0,0,0,0.2))'
+                                                    }}
+                                                />
                                             </div>
                                         ) : (
                                             <span style={{ fontSize: '1.2rem', opacity: 0.5 }}>{i + 1}</span>
@@ -110,7 +122,7 @@ const ProductDetails = () => {
                     </div>
 
                     {/* Right Side: Product Info */}
-                    <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', paddingLeft: '20px', justifyContent: 'center' }}>
+                    <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', paddingLeft: '20px', justifyContent: 'center', overflowY: 'auto' }}>
 
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                             <div style={{ marginBottom: 'auto' }}>
