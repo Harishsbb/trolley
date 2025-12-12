@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode Scanner</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #3498db 0%, #e74c3c 100%);
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            overflow-y: auto;
+            position: relative;
+            animation: backgroundAnimation 10s infinite alternate;
+        }
+
+        @keyframes backgroundAnimation {
+            0% {
+                background: linear-gradient(135deg, #3498db 0%, #e74c3c 100%);
+            }
+            100% {
+                background: linear-gradient(135deg, #3498db 0%, #e74c3c 100%);
+            }
+        }
+
+        h1 {
+            color: #f6f9fb;
+            margin-top: 20px;
+            font-size: 2.5em;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        button {
+            background-color: white;
+            color: #3498db;
+            border: none;
+            padding: 15px 30px;
+            text-align: center;
+            display: inline-block;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            transform: perspective(1000px);
+        }
+
+        button::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 300%;
+            height: 300%;
+            background: rgba(255, 255, 255, 0.3);
+            transition: all 0.5s ease;
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            z-index: 0;
+        }
+
+        button:hover::before {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-5px) rotateX(5deg) rotateY(5deg);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        button span {
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* New style for smaller "Add" button in recommendations */
+        #recommended-list button {
+            padding: 8px 15px;
+            font-size: 14px;
+            margin: 0;
+            border-radius: 15px;
+            background-color: #2ecc71; /* Green for "Add" */
+            color: white;
+            transform: none; /* Override perspective transform */
+            box-shadow: none;
+        }
+        
+        #recommended-list button:hover {
+            background-color: #27ae60;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+
+        #results, #recommended { /* Included #recommended here for base styles */
+            margin-top: 20px;
+            text-align: center;
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1s ease-in-out;
+        }
+        
+        #recommended {
+            margin-top: 40px;
+            margin-bottom: 40px; /* Add margin to the bottom */
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            transition: background-color 0.3s ease;
+        }
+
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+
+        table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        table tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        #total-bill {
+            font-weight: bold;
+            color: #e74c3c;
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+
+        .remove-icon {
+            cursor: pointer;
+            color: #e74c3c;
+            font-size: 1.2em;
+        }
+
+        .remove-icon:hover {
+            color: #c0392b;
+        }
+
+        #popup, #popup-qr {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #popup {
+            background-color: #3498db;
+            color: white;
+        }
+
+        #popup.show {
+            display: block;
+            opacity: 1;
+        }
+
+        #popup.error {
+            background-color: #e74c3c;
+        }
+
+        #popup-qr {
+            background-color: #ffffff;
+        }
+
+        #popup-qr.show {
+            display: block;
+            opacity: 1;
+        }
+
+        #popup .close-btn, #popup-qr .close-btn {
+            background-color: #e74c3c;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            float: right;
+            margin-top: -10px;
+            margin-right: -10px;
+            transition: background-color 0.3s ease;
+        }
+
+        #popup .close-btn:hover, #popup-qr .close-btn:hover {
+            background-color: #c0392b;
+        }
+
+        #qr-code-container img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Barcode Scanner</h1>
+    <div style="text-align: center;">
+        <button aria-label="Start Scanning" onclick="startScanning()"><span>Start Scanning</span></button>
+        <button aria-label="Add More Items" onclick="addMoreItems()"><span>Add More Items</span></button>
+        <!-- <button aria-label="Update List" onclick="updateList()"><span>Update List</span></button> -->
+        <button aria-label="Stop Scanning" onclick="stopScanning()"><span>Stop Scanning</span></button>
+        <button aria-label="Show QR Code" onclick="showQRCode()"><span>Show QR Code</span></button>
+        <button aria-label="Generate Bill" onclick="generateBill()"><span>Generate Bill</span></button>
+    </div>
+
+    <div id="results">
+        <h2>Scanned Products:</h2>
+        <table id="product-list">
+            <thead>
+                <tr>
+                    <th>S.No</th>
+                    <th>Product Name</th>
+                    <th>Price per Unit</th>
+                    <th>Quantity</th>
+                    <th>Total Price</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+        <h2>Total Bill: <span id="total-bill">0</span> rupees</h2>
+    </div>
+
+    <div id="recommended" style="margin-top: 40px; width: 100%; max-width: 800px; text-align: center;">
+        <h2>Recommended for You:</h2>
+        <table id="recommended-list">
+            <thead>
+                <tr>
+                    <th>S.No</th>
+                    <th>Product Name</th>
+                    <th>Price per Unit</th>
+                    <!-- <th>Action</th> -->
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+    <div id="popup" class="popup">
+        <button class="close-btn" onclick="closePopup()">✖</button>
+        <span id="popup-message"></span>
+    </div>
+
+    <div id="popup-qr" class="popup-qr">
+        <button class="close-btn" onclick="closeQRCodePopup()">✖</button>
+        <div id="qr-code-container"></div>
+    </div>
+    <script>
+        function startScanning() {
+            fetch('/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({delay: 1})
+            })
+            .then(response => response.json())
+            .then(data => {
+                showPopup(data.status);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showPopup('An error occurred while starting the scan', true);
+            });
+        }
+
+       function stopScanning() {
+    fetch('/stop', { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+        updateTable(data.products, data.total_prize);
+        showPopup(data.status);
+        loadRecommended(); // Refresh recommendations after stopping the scan
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showPopup('An error occurred while stopping the scan', true);
+    });
+}
+
+
+        function addMoreItems() {
+            fetch('/add-more', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({delay: 1})
+            })
+            .then(response => response.json())
+            .then(data => {
+                showPopup(data.status);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showPopup('An error occurred while adding more items', true);
+            });
+        }
+
+        function updateTable(products, totalPrize) {
+            const tableBody = document.querySelector('#product-list tbody');
+            tableBody.innerHTML = '';
+
+            products.forEach((product, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${product.name}</td>
+                    <td>${product.price}</td>
+                    <td>${product.quantity}</td>
+                    <td>${product.price * product.quantity}</td>
+                    <td><span class="remove-icon" onclick="removeItem('${product.name}')">❌</span></td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            document.getElementById('total-bill').textContent = totalPrize;
+        }
+
+        function removeItem(productName) {
+            fetch('/remove', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({product_name: productName})
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateTable(data.products, data.total_prize);
+                showPopup(data.status);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showPopup('An error occurred while removing the item', true);
+            });
+        }
+
+        function updateList() {
+            fetch('/get-scanned-items', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateTable(data.products, data.total_prize);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showPopup('An error occurred while updating the list', true);
+            });
+        }
+
+        function showQRCode() {
+            fetch('/qr')
+                .then(response => response.blob())
+                .then(blob => {
+                    const qrCodeContainer = document.getElementById('qr-code-container');
+                    qrCodeContainer.innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="QR Code" />`;
+                    document.getElementById('popup-qr').classList.add('show');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showPopup('An error occurred while generating the QR code', true);
+                });
+        }
+
+        function closeQRCodePopup() {
+            document.getElementById('popup-qr').classList.remove('show');
+        }
+
+        function generateBill() {
+            window.open('/generate-bill', '_blank');
+        }
+
+        function showPopup(message, isError = false) {
+            const popup = document.getElementById('popup');
+            const popupMessage = document.getElementById('popup-message');
+
+            popupMessage.textContent = message;
+            popup.classList.toggle('error', isError);
+            popup.classList.add('show');
+
+            setTimeout(() => {
+                popup.classList.remove('show');
+            }, 3000);
+        }
+
+        function closePopup() {
+            document.getElementById('popup').classList.remove('show');
+        }
+
+        // 2️⃣ JS: Added functions for Recommendations
+        function loadRecommended() {
+    fetch('/recommended')  // Flask route to get recommended products
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.querySelector('#recommended-list tbody');
+            tableBody.innerHTML = '';
+
+            if (Array.isArray(data)) {
+                data.forEach((product, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${product.name}</td>
+                        <td>${product.price}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+        })
+        .catch(error => console.error('Error loading recommendations:', error));
+}
+
+        function addRecommended(productName, productPrice) {
+            fetch('/add-recommended', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // Pass both name and price to the backend
+                body: JSON.stringify({ product_name: productName, product_price: productPrice }) 
+            })
+            .then(response => response.json())
+            .then(data => {
+                updateTable(data.products, data.total_prize);
+                showPopup(data.status);
+            })
+            .catch(error => {
+                console.error('Error adding recommended product:', error);
+                showPopup('An error occurred while adding the recommended product', true);
+            });
+        }
+
+        // Call this function when page loads to populate the initial recommendations
+        window.onload = function() {
+            loadRecommended();
+        };
+
+
+    </script>
+</body>
+</html>

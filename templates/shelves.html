@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product.name }} Details</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #3498db 0%, #e74c3c 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            max-width: 85%;
+            margin: auto;
+        }
+        .row {
+            margin: 0;
+        }
+        .shelf {
+            border: 1px solid #ddd;
+            padding: 20px; /* Increased padding */
+            margin: 10px 0; /* Increased margin */
+            height: 150px; /* Increased height */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            background-color: #fff;
+        }
+        .highlighted {
+            background-color: #2297e6;
+            color: #fff;
+        }
+        .shelf img {
+            max-width: 80px; /* Increased size */
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .shelf.blank {
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Product Location: {{ product.name }}</h1>
+        <div class="row">
+            {% for shelf in range(1, 6) %}
+                <div class="col-md-2 mb-2">
+                    <h5 class="text-center">Shelf {{ shelf }}</h5>
+                    {% for position in range(1, 6) %}
+                        <div class="shelf {% if product.location == 'Row ' ~ shelf ~ '-Sector ' ~ position %}highlighted{% else %}blank{% endif %}">
+                            {% if product.location == 'Row ' ~ shelf ~ '-Sector ' ~ position %}
+                                <img src="{{ product.image }}" alt="{{ product.name }}">
+                                <p>{{ product.name }}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+        <div class="mt-4 text-center">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">Go to Scanning</a>
+        </div>
+    </div>
+</body>
+</html>

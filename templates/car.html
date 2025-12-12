@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Admin Dashboard - DMart</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            text-align: center;
+            padding: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .logo p {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0 20px;
+        }
+
+        .nav-item {
+            margin-bottom: 8px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            text-decoration: none;
+            color: #34495e;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transform: translateX(8px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+            fill: currentColor;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 30px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 25px 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h2 {
+            color: #2c3e50;
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
+            padding: 15px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .stat-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: white;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        /* Products Section */
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            padding: 25px 30px;
+            border-bottom: 2px solid #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #ecf0f1;
+            color: #34495e;
+        }
+
+        .btn-secondary:hover {
+            background: #d5dbdb;
+        }
+
+        /* Product Grid */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+            border-color: #667eea;
+        }
+
+        /* UPDATED: product-image container for the actual image */
+        .product-image {
+            width: 100%;
+            height: 150px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: initial; /* Resetting placeholder font size */
+            color: initial; /* Resetting placeholder color */
+        }
+        
+        /* NEW: Style for the image inside the container */
+        .product-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 12px;
+        }
+
+        .product-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .product-price {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e74c3c;
+            margin-bottom: 8px;
+        }
+
+        .product-location {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        /* Category Tabs */
+        .category-tabs {
+            display: flex;
+            padding: 20px 30px 0;
+            gap: 10px;
+            border-bottom: 2px solid #f8f9fa;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            border: none;
+            background: none;
+            color: #7f8c8d;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 12px 12px 0 0;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h2 {
+                font-size: 24px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .products-grid {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="sidebar">
+            <div class="logo">
+                <h1>DMart Admin</h1>
+                <p>Store Management</p>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#dashboard" class="nav-link active" onclick="showSection('dashboard')">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#products" class="nav-link" onclick="showSection('products')">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        Products
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#inventory" class="nav-link" onclick="showSection('inventory')">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+                        </svg>
+                        Inventory
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#orders" class="nav-link" onclick="showSection('orders')">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7ZM9 3V4H15V3H9ZM7 6V19H17V6H7Z"/>
+                        </svg>
+                        Orders
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#analytics" class="nav-link" onclick="showSection('analytics')">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                        </svg>
+                        Analytics
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#users" class="nav-link" onclick="showSection('users')">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M16 7c0-2.76-2.24-5-5-5S6 4.24 6 7s2.24 5 5 5 5-2.24 5-5zm-5 6c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                        Users
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#settings" class="nav-link" onclick="showSection('settings')">
+                        <svg class="nav-icon" viewBox="0 0 24 24">
+                            <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.82,11.69,4.82,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                        </svg>
+                        Settings
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <header class="header">
+                <h2 id="page-title">Dashboard</h2>
+                <div class="user-info">
+                    <span>Welcome, Admin</span>
+                    <div class="user-avatar">A</div>
+                </div>
+            </header>
+
+            <div id="dashboard-section">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-number">24</div>
+                        <div class="stat-label">Total Products</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7Z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-number">156</div>
+                        <div class="stat-label">Orders Today</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-number">₹45,280</div>
+                        <div class="stat-label">Today's Revenue</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M16 7c0-2.76-2.24-5-5-5S6 4.24 6 7s2.24 5 5 5 5-2.24 5-5zm-5 6c-2.67 0-8 1.34-8 4v3h16v-3c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                        </div>
+                        <div class="stat-number">1,248</div>
+                        <div class="stat-label">Active Users</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="products-section" class="section hidden">
+                <div class="section-header">
+                    <h3 class="section-title">Product Management</h3>
+                    <button class="btn btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                        </svg>
+                        Add New Product
+                    </button>
+                </div>
+                <div class="category-tabs">
+                    <button class="tab active" onclick="showCategory('all')">All Products</button>
+                    <button class="tab" onclick="showCategory('snacks')">Snacks</button>
+                    <button class="tab" onclick="showCategory('daily')">Daily Use</button>
+                </div>
+                <div class="products-grid" id="products-container">
+                    </div>
+            </div>
+
+            <div id="inventory-section" class="section hidden">
+                <div class="section-header">
+                    <h3 class="section-title">Inventory Management</h3>
+                    <button class="btn btn-primary">Update Stock</button>
+                </div>
+                <p style="padding: 30px; color: #7f8c8d;">Inventory management features coming soon...</p>
+            </div>
+
+            <div id="orders-section" class="section hidden">
+                <div class="section-header">
+                    <h3 class="section-title">Order Management</h3>
+                    <button class="btn btn-primary">Export Orders</button>
+                </div>
+                <p style="padding: 30px; color: #7f8c8d;">Order management features coming soon...</p>
+            </div>
+
+            <div id="analytics-section" class="section hidden">
+                <div class="section-header">
+                    <h3 class="section-title">Analytics & Reports</h3>
+                    <button class="btn btn-primary">Generate Report</button>
+                </div>
+                <p style="padding: 30px; color: #7f8c8d;">Analytics dashboard coming soon...</p>
+            </div>
+
+            <div id="users-section" class="section hidden">
+                <div class="section-header">
+                    <h3 class="section-title">User Management</h3>
+                    <button class="btn btn-primary">Add User</button>
+                </div>
+                <p style="padding: 30px; color: #7f8c8d;">User management features coming soon...</p>
+            </div>
+
+            <div id="settings-section" class="section hidden">
+                <div class="section-header">
+                    <h3 class="section-title">Settings</h3>
+                    <button class="btn btn-primary">Save Changes</button>
+                </div>
+                <p style="padding: 30px; color: #7f8c8d;">Settings panel coming soon...</p>
+            </div>
+        </main>
+    </div>
+    <script>
+        // Product data from the uploaded document
+        const products = {
+            "Snacks": [
+                {"id": 1, "name": "Lays Potato Chips","price": 10.00 ,"location": "Row 1-Sector 1", "image": "/static/images/1.jpeg", "description": "Delicious potato chips."},
+                {"id": 2, "name": "Slice 1.75 L","price": 93.00 ,"location": "Row 1-Sector 2", "image": "/static/images/2.jpeg", "description": "Refreshing beverage."},
+                {"id": 3, "name": "Tiger Biscuit","price":10.00 , "location": "Row 1-Sector 3", "image": "/static/images/3.jpeg", "description": "Crunchy and tasty biscuits."},
+                {"id": 4, "name": "Good Day Biscuit","price":10.00 , "location": "Row 1-Sector 4", "image": "/static/images/4.jpeg", "description": "Sweet and buttery biscuits."},
+                {"id": 7, "name": "DARK FANTASY CHOCO FILLS LUXURIA","price":128.00 , "location": "Row 2-Sector 2", "image": "/static/images/7.jpeg", "description": "Delicious chocolate-filled cookies."},
+                {"id": 8, "name": "Sunfeast YiPPee Family Pack", "price":153.00 ,"location": "Row 2-Sector 3", "image": "/static/images/8.jpeg", "description": "Tasty noodles for the whole family."},
+                {"id": 21, "name": "Oreo Cadbury Chocolatey Biscuit","price":87.00 , "location": "Row 5-Sector 1", "image": "/static/images/21.jpeg", "description": "Delicious chocolate sandwich biscuits."},
+                {"id": 23, "name": "Kwality Choco Flakes 1kg","price":229.00 , "location": "Row 5-Sector 3", "image": "/static/images/23.jpeg", "description": "Tasty choco flakes for breakfast."},
+                {"id": 25, "name": "Britannia 50-50, Maska Chaska","price":28.00 , "location": "Row 5-Sector 5", "image": "/static/images/25.jpg", "description": "Crunchy biscuits with a tasty maska chaska."}
+            ],
+            "Daily Use Products": [
+                {"id": 5, "name": "Tata Salt 1kg", "price":25.00 ,"location": "Row 1-Sector 5", "image": "/static/images/5.jpeg", "description": "Essential cooking salt."},
+                {"id": 6, "name": "Gold Winner Sunflower Oil 1L","price":190.00 , "location": "Row 2-Sector 1", "image": "/static/images/6.jpeg", "description": "High-quality sunflower oil."},
+                {"id": 9, "name": "Colgate MaxFresh Toothpaste","price":72.00 , "location": "Row 2-Sector 4", "image": "/static/images/9.jpeg", "description": "Fresh breath toothpaste."},
+                {"id": 10, "name": "Dabur Honey - 1kg","price":391.00 ,"location": "Row 2-Sector 5", "image": "/static/images/10.jpeg", "description": "Pure and natural honey."},
+                {"id": 11, "name": "Mysore Sandal Soap, 450g","price":232.00 , "location": "Row 3-Sector 1", "image": "/static/images/11.jpeg", "description": "Luxurious sandalwood soap."},
+                {"id": 12, "name": "Harpic 1 Litre (Pack of 2)","price":396.00 , "location": "Row 3-Sector 2", "image": "/static/images/12.jpg", "description": "Effective toilet cleaner."},
+                {"id": 13, "name": "Parachute Coconut Oil","price":126.00 , "location": "Row 3-Sector 3", "image": "/static/images/13.jpg", "description": "Pure coconut oil for cooking and skin."},
+                {"id": 14, "name": "Santoor Soap (Pack of 4)","price":163.00 , "location": "Row 3-Sector 4", "image": "/static/images/14.jpg", "description": "Gentle and moisturizing soap."},
+                {"id": 15, "name": "Surf Excel Easy Wash Detergent Powder - 5 Kg","price":650.00 , "location": "Row 3-Sector 5", "image": "/static/images/15.jpg", "description": "Powerful stain removal detergent."},
+                {"id": 16, "name": "Dettol Liquid Hand Wash, 675ml","price":92.00 , "location": "Row 4-Sector 1", "image": "/static/images/16.jpeg", "description": "Antibacterial hand wash."},
+                {"id": 17, "name": "Vanish 800ml","price":199.00 , "location": "Row 4-Sector 2", "image": "/static/images/17.jpeg", "description": "Stain remover for clothes."},
+                {"id": 18, "name": "Cadbury Bournvita Chocolate Nutrition Drink, 2 kg","price":697.00 , "location": "Row 4-Sector 3", "image": "/static/images/18.jpeg", "description": "Chocolate drink for energy."},
+                {"id": 19, "name": "Dabur Red Toothpaste - 800g (200gx4)","price":330.00 , "location": "Row 4-Sector 4", "image": "/static/images/19.jpeg", "description": "Ayurvedic toothpaste for oral care."},
+                {"id": 20, "name": "Ariel Matic Liquid Detergent 3.2 Ltr","price":479.00 , "location": "Row 4-Sector 5", "image": "/static/images/20.jpg", "description": "Liquid detergent for washing machines."},
+                {"id": 22, "name": "BOOST Chocolate Nutrition Drink Powder 750g","price":380.00 , "location": "Row 5-Sector 2", "image": "/static/images/22.jpeg", "description": "Chocolate drink powder for energy."},
+                {"id": 24, "name": "Softouch 2X French Perfume 2L Fabric Conditioner","price":345.00 , "location": "Row 5-Sector 4", "image": "/static/images/24.jpeg", "description": "Fabric conditioner with a French fragrance."}
+            ]
+        };
+
+        let currentCategory = 'all';
+
+        // Navigation function
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('[id$="-section"]').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Remove active class from all nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected section
+            const targetSection = document.getElementById(sectionName + '-section');
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+            
+            // Add active class to clicked nav link
+            event.target.closest('.nav-link').classList.add('active');
+            
+            // Update page title
+            const pageTitle = document.getElementById('page-title');
+            pageTitle.textContent = sectionName.charAt(0).toUpperCase() + sectionName.slice(1);
+            
+            // Load products if products section is selected
+            if (sectionName === 'products') {
+                loadProducts(currentCategory);
+            }
+        }
+
+        // Category filter function
+        function showCategory(category) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            currentCategory = category;
+            loadProducts(category);
+        }
+
+        // Load products function
+        function loadProducts(category) {
+            const container = document.getElementById('products-container');
+            container.innerHTML = '';
+            
+            let productsToShow = [];
+            
+            if (category === 'all') {
+                productsToShow = [...products.Snacks, ...products['Daily Use Products']];
+            } else if (category === 'snacks') {
+                productsToShow = products.Snacks;
+            } else if (category === 'daily') {
+                productsToShow = products['Daily Use Products'];
+            }
+            
+            productsToShow.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card';
+                productCard.innerHTML = `
+                    <div class="product-image">
+                        <img src="${product.image}" alt="${product.name}" onerror="this.src='/static/images/placeholder.svg';">
+                    </div>
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-price">₹${product.price.toFixed(2)}</div>
+                    <div class="product-location">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                        ${product.location}
+                    </div>
+                    <div class="product-actions">
+                        <button class="btn btn-secondary btn-small" onclick="editProduct(${product.id})">Edit</button>
+                        <button class="btn btn-primary btn-small" onclick="viewProduct(${product.id})">View</button>
+                    </div>
+                `;
+                container.appendChild(productCard);
+            });
+        }
+
+        // Product action functions
+        function editProduct(id) {
+            alert(`Edit product with ID: ${id}`);
+        }
+
+        function viewProduct(id) {
+            const allProducts = [...products.Snacks, ...products['Daily Use Products']];
+            const product = allProducts.find(p => p.id === id);
+            if (product) {
+                alert(`Product: ${product.name}\nPrice: ₹${product.price}\nLocation: ${product.location}\nDescription: ${product.description}`);
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load products for the products section when initialized
+            loadProducts('all');
+            
+            // Add some animations
+            const statCards = document.querySelectorAll('.stat-card');
+            statCards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    card.style.transition = 'all 0.5s ease';
+                    
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 100);
+                }, index * 100);
+            });
+        });
+
+        // Mobile menu toggle (if needed)
+        function toggleMobileMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('mobile-open');
+        }
+
+        // Add some interactive features
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+
+        // Search functionality (placeholder)
+        function searchProducts(query) {
+            const allProducts = [...products.Snacks, ...products['Daily Use Products']];
+            const filteredProducts = allProducts.filter(product => 
+                product.name.toLowerCase().includes(query.toLowerCase()) ||
+                product.description.toLowerCase().includes(query.toLowerCase())
+            );
+            
+            const container = document.getElementById('products-container');
+            container.innerHTML = '';
+            
+            filteredProducts.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card';
+                productCard.innerHTML = `
+                    <div class="product-image">
+                         <img src="${product.image}" alt="${product.name}" onerror="this.src='/static/images/placeholder.svg';">
+                    </div>
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-price">₹${product.price.toFixed(2)}</div>
+                    <div class="product-location">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                        ${product.location}
+                    </div>
+                    <div class="product-actions">
+                        <button class="btn btn-secondary btn-small" onclick="editProduct(${product.id})">Edit</button>
+                        <button class="btn btn-primary btn-small" onclick="viewProduct(${product.id})">View</button>
+                    </div>
+                `;
+                container.appendChild(productCard);
+            });
+            
+        }
+    </script>
+
+</body>
+</html>
