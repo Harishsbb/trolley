@@ -11,14 +11,28 @@ const ProductDetails = () => {
 
     useEffect(() => {
         if (!product) {
-            // Fetch all products and find the one with the matching ID
+            // Check cache first
+            const cachedData = localStorage.getItem('snapshop_products_cache');
+            if (cachedData) {
+                const allProducts = JSON.parse(cachedData);
+                // Ensure we compare strings properly (ObjectId is string)
+                const found = allProducts.find(p => String(p.id) === String(id));
+                if (found) {
+                    setProduct(found);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // Fallback to fetch if not in cache (fresh catalog fetch)
             const fetchProduct = async () => {
                 try {
                     const res = await axios.get('/search?query=');
-                    // Ensure we compare strings properly (ObjectId is string)
                     const found = res.data.find(p => String(p.id) === String(id));
                     if (found) {
                         setProduct(found);
+                        // Update cache while we're at it
+                        localStorage.setItem('snapshop_products_cache', JSON.stringify(res.data));
                     }
                 } catch (err) {
                     console.error(err);
@@ -27,6 +41,8 @@ const ProductDetails = () => {
                 }
             };
             fetchProduct();
+        } else {
+            setLoading(false);
         }
     }, [id, product]);
 
@@ -130,12 +146,44 @@ const ProductDetails = () => {
                                 <p style={{ fontSize: '2.5rem', color: '#e74c3c', fontWeight: 'bold', margin: '0 0 20px 0' }}>₹{product.price}</p>
                             </div>
 
-                            <div style={{ backgroundColor: '#f8f9fa', padding: '25px', borderRadius: '15px', borderLeft: '6px solid #3498db', marginBottom: '30px' }}>
-                                <h4 style={{ margin: '0 0 10px 0', color: '#7f8c8d', textTransform: 'uppercase', letterSpacing: '1px' }}>Shelf Coordinates</h4>
-                                <p style={{ margin: 0, fontSize: '1.4rem', fontWeight: 'bold', color: '#2c3e50' }}>
-                                    Row {Math.floor((String(product.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 20) / 5) + 1},
-                                    Slot {(String(product.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 20) % 5 + 1}
-                                </p>
+                            {/* Location Details Card */}
+                            <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '16px', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-color)', marginBottom: '32px' }}>
+                                <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                            <circle cx="12" cy="10" r="3" />
+                                        </svg>
+                                        Precise Location
+                                    </div>
+                                </h3>
+
+                                {(() => {
+                                    // Calculate deterministic location
+                                    const hash = String(product.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                                    const slotIndex = hash % 20;
+
+                                    const rackNum = (hash % 4) + 1; // Random Rack 1-4
+                                    const rowNum = Math.floor(slotIndex / 5) + 1; // Row 1-4
+                                    const colNum = (slotIndex % 5) + 1; // Col 1-5
+
+                                    return (
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                                            <div style={{ background: '#f8fafc', padding: '16px 8px', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>Rack</div>
+                                                <div style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--primary)' }}>{rackNum}</div>
+                                            </div>
+                                            <div style={{ background: '#f8fafc', padding: '16px 8px', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>Row</div>
+                                                <div style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--text-main)' }}>{rowNum}</div>
+                                            </div>
+                                            <div style={{ background: '#f8fafc', padding: '16px 8px', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>Column</div>
+                                                <div style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--text-main)' }}>{colNum}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
 

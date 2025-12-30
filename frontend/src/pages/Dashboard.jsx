@@ -24,18 +24,20 @@ ChartJS.register(
 
 const Dashboard = () => {
     const [products, setProducts] = useState([]);
-    const [formData, setFormData] = useState({ name: '', price: '', qty: '' });
+    const [formData, setFormData] = useState({ name: '', price: '', qty: '', imageUrl: '' });
     const [removeName, setRemoveName] = useState('');
     const [loading, setLoading] = useState(true);
+    const [editingProduct, setEditingProduct] = useState(null); // { id, name, price, barcode, image }
 
-    const fetchStock = async () => {
+    const fetchStock = async (isBackground = false) => {
+        if (!isBackground) setLoading(true);
         try {
             const res = await axios.get('/api/stock');
             setProducts(res.data);
         } catch (err) {
             console.error(err);
         } finally {
-            setLoading(false);
+            if (!isBackground) setLoading(false);
         }
     };
 
@@ -43,35 +45,84 @@ const Dashboard = () => {
         fetchStock();
     }, []);
 
+    const findImage = () => {
+        if (!formData.name) return alert('Enter a product name first');
+        window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(formData.name)}`, '_blank');
+    };
+
     const handleAdd = async (e) => {
         e.preventDefault();
+
+        // Optimistic Update
+        const tempId = Date.now();
+        const newProd = {
+            product_name: formData.name,
+            product_price: parseFloat(formData.price),
+            quantity: parseInt(formData.qty),
+            image: formData.imageUrl || '/static/images/placeholder.svg',
+            barcodedata: formData.name // fallback
+        };
+
+        setProducts(prev => [newProd, ...prev]);
+        setFormData({ name: '', price: '', qty: '', imageUrl: '' });
+
         try {
-            const res = await axios.post('/api/product/add', {
-                name: formData.name,
-                price: parseFloat(formData.price),
-                barcode: formData.name, // Using name as barcode per original code logic
-                image_url: '',
-                quantity: parseInt(formData.qty)
+            await axios.post('/api/product/add', {
+                name: newProd.product_name,
+                price: newProd.product_price,
+                barcode: newProd.product_name,
+                image_url: formData.imageUrl,
+                quantity: newProd.quantity
             });
-            alert(res.data.status);
-            setFormData({ name: '', price: '', qty: '' });
-            fetchStock();
+            // Silent refresh to get real ID/data
+            fetchStock(true);
         } catch (err) {
             alert('Failed to add product');
+            fetchStock(true); // Revert on error
         }
     };
 
     const handleRemove = async (e) => {
         e.preventDefault();
+
+        // Optimistic Update
+        const toRemove = removeName.toLowerCase();
+        setProducts(prev => prev.filter(p =>
+            (p.product_name?.toLowerCase() !== toRemove) &&
+            (p.barcodedata !== toRemove)
+        ));
+        setRemoveName('');
+
         try {
-            const res = await axios.post('/api/product/remove', {
+            await axios.post('/api/product/remove', {
                 barcode: removeName
             });
-            alert(res.data.status);
-            setRemoveName('');
-            fetchStock();
+            fetchStock(true);
         } catch (err) {
             alert('Failed to remove product');
+            fetchStock(true);
+        }
+    };
+
+    const updateStock = async (product, change) => {
+        // Optimistic update
+        setProducts(prev => prev.map(p => {
+            if (p.barcodedata === product.barcodedata && p.product_name === product.product_name) {
+                // Ensure we don't go below 0
+                const newQty = Math.max(0, (p.quantity || 0) + change);
+                return { ...p, quantity: newQty };
+            }
+            return p;
+        }));
+
+        try {
+            await axios.post('/api/product/update-stock', {
+                barcode: product.barcodedata || product.product_name,
+                change: change
+            });
+        } catch (err) {
+            console.error('Failed to update stock', err);
+            fetchStock(true); // Revert/Refresh
         }
     };
 
@@ -81,84 +132,442 @@ const Dashboard = () => {
             {
                 label: 'Available Stock',
                 data: products.map(p => p.quantity),
-                backgroundColor: 'rgba(52, 152, 219, 0.8)',
-                borderRadius: 5,
+                backgroundColor: 'rgba(99, 102, 241, 0.8)', // Indigo-500
+                borderRadius: 6,
+                hoverBackgroundColor: '#4f46e5'
             },
         ],
     };
 
     const chartOptions = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: {
-                position: 'top',
+                display: false
             },
-            title: {
-                display: true,
-                text: 'Stock Levels',
-            },
+            title: { display: false },
         },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f1f5f9' },
+                ticks: {
+                    font: { family: "'Outfit', sans-serif", size: 11 },
+                    color: '#64748b'
+                },
+                border: { display: false }
+            },
+            x: {
+                grid: { display: false },
+                ticks: {
+                    font: { family: "'Outfit', sans-serif", size: 10 },
+                    color: '#64748b',
+                    maxRotation: 45,
+                    minRotation: 45
+                },
+                border: { display: false }
+            }
+        }
+    };
+
+    const handleEditClick = (p) => {
+        setEditingProduct({
+            id: p._id,
+            name: p.product_name || p.name,
+            price: p.product_price || p.price,
+            barcode: p.barcodedata,
+            image: p.image
+        });
+    };
+
+    const handleEditSave = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.post('/api/product/edit', {
+                id: editingProduct.id,
+                name: editingProduct.name,
+                price: editingProduct.price,
+                barcode: editingProduct.barcode,
+                image: editingProduct.image
+            });
+            setEditingProduct(null);
+            fetchStock(); // Refresh data
+        } catch (err) {
+            alert('Failed to update product');
+        }
     };
 
     return (
-        <div className="container fade-in" style={{ paddingTop: '20px', minHeight: '100vh', paddingBottom: '50px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-                <Link to="/home" className="btn btn-primary" style={{ backgroundColor: '#7f8c8d' }}>&larr; Back to Home</Link>
-                <h1 style={{ color: 'white', margin: 0 }}>Shop Dashboard</h1>
-                <div style={{ width: '100px' }}></div>
+        <div style={{
+            background: '#f8fafc',
+            minHeight: '100vh',
+            fontFamily: "'Outfit', sans-serif",
+            paddingBottom: '60px'
+        }}>
+            {/* Navbar / Header */}
+            <div style={{
+                background: 'white',
+                borderBottom: '1px solid #e2e8f0',
+                padding: '16px 24px',
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                        width: '40px', height: '40px', borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #4f46e5 0%, #ec4899 100%)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: 'white', fontSize: '1.2rem'
+                    }}>🛍️</div>
+                    <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: '#1e293b' }}>
+                        SnapShop <span style={{ fontWeight: '400', color: '#64748b' }}>Admin</span>
+                    </span>
+                </div>
+                <Link to="/home" style={{
+                    textDecoration: 'none',
+                    color: '#475569',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 16px',
+                    borderRadius: '50px',
+                    background: '#f1f5f9',
+                    transition: 'all 0.2s'
+                }}>
+                    <span>&larr;</span> Back to Home
+                </Link>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                {/* Add Product Form */}
-                <div className="card" style={{ backgroundColor: 'white' }}>
-                    <h3 style={{ color: '#333' }}>Add Product</h3>
-                    <form onSubmit={handleAdd}>
-                        <div className="input-group">
-                            <label>Product Name</label>
-                            <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                        </div>
-                        <div className="input-group">
-                            <label>Price</label>
-                            <input type="number" required value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
-                        </div>
-                        <div className="input-group">
-                            <label>Quantity</label>
-                            <input type="number" required value={formData.qty} onChange={e => setFormData({ ...formData, qty: e.target.value })} />
-                        </div>
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Add Product</button>
-                    </form>
-                </div>
+            <div className="container" style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 24px' }}>
 
-                {/* Remove Product Form */}
-                <div className="card" style={{ backgroundColor: 'white', height: 'fit-content' }}>
-                    <h3 style={{ color: '#333' }}>Remove Product</h3>
-                    <form onSubmit={handleRemove}>
-                        <div className="input-group">
-                            <label>Product name / Barcode</label>
-                            <input type="text" required value={removeName} onChange={e => setRemoveName(e.target.value)} />
+                {/* Actions Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+
+                    {/* Add Product Panel */}
+                    <div style={{
+                        background: 'white',
+                        borderRadius: '16px',
+                        padding: '24px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        border: '1px solid #e2e8f0'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                            <div style={{
+                                width: '48px', height: '48px', borderRadius: '12px',
+                                background: '#e0e7ff', color: '#4f46e5',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#1e293b' }}>Add Product</h3>
+                                <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b' }}>Update your store inventory</p>
+                            </div>
                         </div>
-                        <button type="submit" className="btn btn-primary" style={{ backgroundColor: '#e74c3c', width: '100%' }}>Remove Product</button>
-                    </form>
-                </div>
-            </div>
 
-            {/* Chart */}
-            <div className="card" style={{ backgroundColor: 'white', marginBottom: '30px' }}>
-                <div style={{ height: '300px' }}>
-                    {loading ? 'Loading chart...' : <Bar options={chartOptions} data={chartData} />}
-                </div>
-            </div>
+                        <form onSubmit={handleAdd} style={{ display: 'grid', gap: '16px' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Product Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Diet Coke"
+                                    className="search-input"
+                                    style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%' }}
+                                    value={formData.name}
+                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                />
+                            </div>
 
-            {/* Product List */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
-                {products.map((p, i) => (
-                    <div key={i} className="card" style={{ backgroundColor: 'white', padding: '15px' }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>{p.product_name}</h4>
-                        <p style={{ margin: '5px 0', color: '#7f8c8d' }}>Price: ₹{p.product_price}</p>
-                        <p style={{ margin: '5px 0', fontWeight: 'bold', color: 'green' }}>Qty: {p.quantity}</p>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Image URL</label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input
+                                        type="text"
+                                        placeholder="Paste image link here..."
+                                        style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none' }}
+                                        value={formData.imageUrl}
+                                        onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={findImage}
+                                        style={{
+                                            padding: '10px 16px', borderRadius: '8px', border: '1px solid #cbd5e1',
+                                            background: '#f8fafc', cursor: 'pointer', fontSize: '1.2rem'
+                                        }}
+                                        title="Find image on Google"
+                                    >
+                                        🔍
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Price (₹)</label>
+                                    <input
+                                        type="number"
+                                        placeholder="0.00"
+                                        style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none' }}
+                                        value={formData.price}
+                                        onChange={e => setFormData({ ...formData, price: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Quantity</label>
+                                    <input
+                                        type="number"
+                                        placeholder="0"
+                                        style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none' }}
+                                        value={formData.qty}
+                                        onChange={e => setFormData({ ...formData, qty: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <button type="submit" className="btn btn-primary" style={{ marginTop: '8px' }}>
+                                Add to Inventory
+                            </button>
+                        </form>
                     </div>
-                ))}
+
+                    {/* Remove Panel & Analytics Preview */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        <div style={{
+                            background: 'white',
+                            borderRadius: '16px',
+                            padding: '24px',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            border: '1px solid #e2e8f0',
+                            flex: 1
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                                <div style={{
+                                    width: '48px', height: '48px', borderRadius: '12px',
+                                    background: '#fee2e2', color: '#dc2626',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#1e293b' }}>Remove Product</h3>
+                                    <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#64748b' }}>Scanner or Manual Entry</p>
+                                </div>
+                            </div>
+                            <form onSubmit={handleRemove} style={{ display: 'flex', gap: '12px' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Enter barcode or name..."
+                                    style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                                    value={removeName}
+                                    onChange={e => setRemoveName(e.target.value)}
+                                />
+                                <button type="submit" className="btn" style={{ background: '#ef4444', color: 'white', padding: '0 24px' }}>Remove</button>
+                            </form>
+                        </div>
+
+                        {/* Mini Analytics */}
+                        <div style={{
+                            background: 'white',
+                            borderRadius: '16px',
+                            padding: '20px',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            border: '1px solid #e2e8f0',
+                            height: '200px',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}>
+                            <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stock Overview</h4>
+                            <div style={{ flex: 1, position: 'relative' }}>
+                                <Bar data={chartData} options={chartOptions} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Inventory Grid */}
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    Current Inventory <span style={{ fontSize: '1rem', background: '#f1f5f9', padding: '4px 12px', borderRadius: '20px', color: '#64748b' }}>{products.length} Items</span>
+                </h3>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
+                    {products.map((p, i) => (
+                        <div key={i} className="product-card" style={{
+                            background: 'white',
+                            borderRadius: '16px',
+                            padding: '16px',
+                            border: '1px solid #e2e8f0',
+                            transition: 'all 0.3s ease',
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}>
+                            {/* Stock Indicator Dot */}
+                            <div style={{
+                                position: 'absolute', top: '16px', right: '16px',
+                                width: '10px', height: '10px', borderRadius: '50%',
+                                background: p.quantity > 10 ? '#22c55e' : p.quantity > 0 ? '#f59e0b' : '#ef4444',
+                                boxShadow: '0 0 0 4px rgba(255,255,255,0.8)',
+                                zIndex: 10
+                            }} title={p.quantity > 0 ? 'In Stock' : 'Out of Stock'}></div>
+
+                            {/* Edit Button */}
+                            <button
+                                onClick={() => handleEditClick(p)}
+                                style={{
+                                    position: 'absolute', top: '12px', left: '12px',
+                                    width: '32px', height: '32px', borderRadius: '8px',
+                                    background: 'white', border: '1px solid #e2e8f0',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                    zIndex: 10, color: '#475569'
+                                }}
+                                title="Edit Details"
+                            >
+                                ✏️
+                            </button>
+
+                            <div style={{
+                                height: '160px', borderRadius: '12px', background: '#f8fafc',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                marginBottom: '16px', overflow: 'hidden'
+                            }}>
+                                <img
+                                    src={p.image || '/static/images/placeholder.svg'}
+                                    alt={p.product_name}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/400x400/f1f5f9/94a3b8.png?text=${encodeURIComponent(p.product_name)}` }}
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }}
+                                />
+                            </div>
+
+                            <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {p.product_name || p.name}
+                            </h4>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Barcode: <span style={{ fontFamily: 'monospace' }}>{p.barcodedata?.slice(-6) || 'N/A'}</span></span>
+                                <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#4f46e5' }}>₹{p.product_price || p.price}</span>
+                            </div>
+
+                            <div style={{ background: '#f1f5f9', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Stock Level</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', padding: '2px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                    <button
+                                        onClick={() => updateStock(p, -1)}
+                                        disabled={p.quantity <= 0}
+                                        style={{
+                                            width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            cursor: p.quantity <= 0 ? 'not-allowed' : 'pointer',
+                                            background: p.quantity <= 0 ? '#f1f5f9' : '#fee2e2',
+                                            color: p.quantity <= 0 ? '#cbd5e1' : '#dc2626',
+                                            fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1
+                                        }}
+                                        title="Decrease Stock"
+                                    >−</button>
+                                    <span style={{ fontSize: '1rem', fontWeight: '700', color: '#1e293b', minWidth: '30px', textAlign: 'center' }}>{p.quantity}</span>
+                                    <button
+                                        onClick={() => updateStock(p, 1)}
+                                        style={{
+                                            width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            background: '#e0e7ff', color: '#4f46e5',
+                                            fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1
+                                        }}
+                                        title="Increase Stock"
+                                    >+</button>
+                                </div>
+                            </div>
+
+                            {/* Visual Bar for Stock */}
+                            <div style={{ marginTop: '8px', height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                                <div style={{
+                                    height: '100%', width: `${Math.min(p.quantity, 100)}%`,
+                                    background: p.quantity < 5 ? '#ef4444' : '#4f46e5',
+                                    borderRadius: '2px',
+                                    transition: 'width 0.5s ease'
+                                }}></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {products.length === 0 && !loading && (
+                    <div style={{ textAlign: 'center', padding: '60px', opacity: 0.6 }}>
+                        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📦</div>
+                        <h3>No products found in inventory.</h3>
+                        <p>Use the "Add Product" panel to get started.</p>
+                    </div>
+                )}
             </div>
+
+            {/* Edit Modal */}
+            {editingProduct && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    backdropFilter: 'blur(4px)'
+                }}>
+                    <div style={{
+                        background: 'white', borderRadius: '24px', padding: '32px',
+                        width: '90%', maxWidth: '500px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                    }}>
+                        <h3 style={{ marginTop: 0, fontSize: '1.5rem', color: '#1e293b' }}>Edit Product</h3>
+                        <form onSubmit={handleEditSave} style={{ display: 'grid', gap: '16px' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Name</label>
+                                <input
+                                    value={editingProduct.name}
+                                    onChange={e => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Price</label>
+                                <input
+                                    value={editingProduct.price}
+                                    onChange={e => setEditingProduct({ ...editingProduct, price: e.target.value })}
+                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Image URL</label>
+                                <input
+                                    value={editingProduct.image}
+                                    onChange={e => setEditingProduct({ ...editingProduct, image: e.target.value })}
+                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Barcode</label>
+                                <input
+                                    value={editingProduct.barcode}
+                                    onChange={e => setEditingProduct({ ...editingProduct, barcode: e.target.value })}
+                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                                <button type="button" onClick={() => setEditingProduct(null)} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#f1f5f9', color: '#64748b', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+                                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#4f46e5', color: 'white', fontWeight: '600', cursor: 'pointer' }}>Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

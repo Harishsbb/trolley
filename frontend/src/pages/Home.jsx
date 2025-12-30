@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import BackgroundAnimation from '../components/BackgroundAnimation';
 import '../index.css';
 
 const Home = () => {
@@ -16,47 +15,131 @@ const Home = () => {
             navigate('/login');
         } catch (error) {
             console.error('Logout failed', error);
-            // Force logout anyway on client side
             localStorage.removeItem('loggedin');
             navigate('/login');
         }
     };
 
+    const role = localStorage.getItem('role') || 'customer';
+
+    const allActions = [
+        { title: 'Scan Product', icon: '📸', path: '/scanner', desc: 'Scan barcodes to add items', roles: ['customer'] },
+        { title: 'Product Gallery', icon: '🔍', path: '/search', desc: 'Browse and search inventory', roles: ['customer'] },
+        { title: 'Manage Stock', icon: '📦', path: '/dashboard', desc: 'Update quantity and prices', roles: ['admin'] }
+    ];
+
+    const actions = allActions.filter(action => action.roles.includes(role));
+
     return (
-        <div style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            <BackgroundAnimation />
-
-            <div className="fade-in" style={{ textAlign: 'center', zIndex: 1 }}>
-                <h1 style={{ color: 'white', fontSize: '3rem', marginBottom: '10px' }}>Welcome to Smart Shopping</h1>
-                <h2 style={{ color: '#f2f6f7', fontSize: '2rem', marginBottom: '40px' }}>Welcome, {username}!</h2>
-
-                <p style={{ color: '#ecf0f1', fontSize: '1.2rem', marginBottom: '40px' }}>We're glad to have you back!</p>
-
-                <div className="button-container">
-                    <button className="home-btn" onClick={() => navigate('/scanner')}>
-                        <span>Scan Product</span>
-                    </button>
-
-                    <button className="home-btn" onClick={() => navigate('/search')}>
-                        <span>Search Product</span>
-                    </button>
-
-                    <button className="home-btn" onClick={() => navigate('/dashboard')}>
-                        <span>Manage Stock</span>
-                    </button>
-
-                    <button className="home-btn" onClick={() => navigate('/admin')}>
-                        <span>Admin Panel</span>
-                    </button>
-
-                    <button className="btn-logout" onClick={handleLogout}>
+        <div style={{ minHeight: '100vh', paddingBottom: '40px' }}>
+            {/* Header */}
+            <header style={{
+                background: 'rgba(255, 255, 255, 0.8)',
+                backdropFilter: 'blur(10px)',
+                borderBottom: '1px solid var(--border-color)',
+                position: 'sticky',
+                top: 0,
+                zIndex: 10
+            }}>
+                <div className="container" style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px 24px'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                            fontSize: '1.5rem',
+                            background: 'var(--primary)',
+                            color: 'white',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            S
+                        </div>
+                        <h1 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>Smart Shopping</h1>
+                    </div>
+                    <button
+                        onClick={handleLogout}
+                        className="btn btn-ghost"
+                        style={{ fontSize: '0.9rem', padding: '8px 16px' }}
+                    >
                         Logout
                     </button>
                 </div>
-            </div>
+            </header>
 
-            <footer style={{ position: 'absolute', bottom: '20px', color: 'white', textAlign: 'center', width: '100%' }}>
-                <p>© 2024 Smart Shopping. All rights reserved.</p>
+            {/* Main Content */}
+            <main className="container fade-in" style={{ marginTop: '40px' }}>
+                <div style={{ marginBottom: '40px', textAlign: 'center' }}>
+                    <h2 className="section-title">Hello, {username} 👋</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>What would you like to do today?</p>
+                </div>
+
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '24px',
+                    maxWidth: '1000px',
+                    margin: '0 auto'
+                }}>
+                    {actions.map((action, index) => (
+                        <div
+                            key={index}
+                            onClick={() => navigate(action.path)}
+                            className="product-card"
+                            style={{
+                                cursor: 'pointer',
+                                alignItems: 'center',
+                                textAlign: 'center',
+                                padding: '40px 24px'
+                            }}
+                        >
+                            <div style={{
+                                fontSize: '3.5rem',
+                                marginBottom: '20px',
+                                background: '#f1f5f9',
+                                width: '100px',
+                                height: '100px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                {action.icon}
+                            </div>
+                            <h3 style={{
+                                fontSize: '1.25rem',
+                                fontWeight: '700',
+                                color: 'var(--text-main)',
+                                margin: '0 0 8px 0'
+                            }}>
+                                {action.title}
+                            </h3>
+                            <p style={{
+                                color: 'var(--text-muted)',
+                                margin: 0,
+                                lineHeight: '1.5'
+                            }}>
+                                {action.desc}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </main>
+
+            <footer style={{
+                textAlign: 'center',
+                color: 'var(--text-muted)',
+                marginTop: '60px',
+                padding: '20px',
+                fontSize: '0.9rem'
+            }}>
+                <p>&copy; {new Date().getFullYear()} Smart Shopping System. All rights reserved.</p>
             </footer>
         </div>
     );

@@ -10,7 +10,19 @@ const Bill = () => {
     useEffect(() => {
         const fetchBillData = async () => {
             try {
-                // Fetch the current scanned items
+                // Try to get local data passed from Scanner first (WYSIWYG)
+                const localData = localStorage.getItem('billData');
+                if (localData) {
+                    const parsed = JSON.parse(localData);
+                    setProducts(parsed.products || []);
+                    setTotalPrice(parsed.total_prize || 0);
+                    setLoading(false);
+                    // Clear it so future direct accesses might fetch fresh
+                    // localStorage.removeItem('billData'); 
+                    return;
+                }
+
+                // Fallback to server fetch
                 const res = await axios.get('/get-scanned-items');
                 setProducts(res.data.products || []);
                 setTotalPrice(res.data.total_prize || 0);
@@ -48,7 +60,7 @@ const Bill = () => {
                     opacity: 0.15,
                     pointerEvents: 'none'
                 }}>
-                    Paid
+                    Invoice
                 </div>
 
                 <h1 style={{ textAlign: 'center', color: '#333' }}>Your Bill</h1>
@@ -77,7 +89,19 @@ const Bill = () => {
                 </table>
 
                 <div style={{ textAlign: 'right', fontSize: '1.2em', fontWeight: 'bold' }}>
-                    Total: {totalPrice} rupees
+                    Total: {Number(totalPrice).toFixed(2)} rupees
+                </div>
+
+                <div style={{ marginTop: '20px', textAlign: 'center', borderTop: '1px dashed #ccc', paddingTop: '20px' }}>
+                    <h3>Scan to Pay</h3>
+                    <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`upi://pay?pa=bavaharishkumar-2@okicici&pn=SnapShop&am=${Number(totalPrice).toFixed(2)}&cu=INR`)}`}
+                        alt="Payment QR Code"
+                        style={{ padding: '10px', background: 'white', border: '1px solid #ddd', borderRadius: '8px' }}
+                    />
+                    <p style={{ marginTop: '10px', color: '#666', fontSize: '0.9em' }}>
+                        UPI / Wallet Payment
+                    </p>
                 </div>
 
                 <div style={{ marginTop: '30px', textAlign: 'center' }}>

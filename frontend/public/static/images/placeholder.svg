@@ -1,0 +1,6 @@
+<svg width="150" height="150" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+  <rect width="150" height="150" fill="#f0f0f0"/>
+  <path d="M75 40c-19.3 0-35 15.7-35 35s15.7 35 35 35 35-15.7 35-35-15.7-35-35-35zm0 60c-13.8 0-25-11.2-25-25s11.2-25 25-25 25 11.2 25 25-11.2 25-25 25z" fill="#ddd"/>
+  <path d="M75 55l-10 15h20l-10-15z" fill="#bbb"/>
+  <text x="75" y="125" font-family="Arial, sans-serif" font-size="12" fill="#999" text-anchor="middle">No Image</text>
+</svg>

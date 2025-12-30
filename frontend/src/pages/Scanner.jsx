@@ -2,16 +2,31 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import axios from 'axios';
 import '../index.css';
+import successSound from '../assets/sounds/success.mp3';
+import scanSound from '../assets/sounds/scan.mp3';
+import beepSound from '../assets/sounds/beep-02.mp3';
+import thankyouSound from '../assets/sounds/thankyou.mp3';
 
 const Scanner = () => {
     const [scannedItems, setScannedItems] = useState([]);
     const [totalPrice, setTotalPrice] = useState(0);
     const [scanning, setScanning] = useState(false);
     const [recommendations, setRecommendations] = useState([]);
+    const [lastScanned, setLastScanned] = useState(null);
+    const [toast, setToast] = useState({ message: '', type: '', visible: false });
 
-    const scannerRef = useRef(null); // Stores the Html5Qrcode instance
+    // Use a counter for pending actions to handle multiple rapid scans correctly
+    const [pendingScans, setPendingScans] = useState(0);
+    const isAdding = pendingScans > 0;
+
+    const scannerRef = useRef(null);
     const lastScannedCode = useRef(null);
     const lastScannedTime = useRef(0);
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type, visible: true });
+        setTimeout(() => setToast(prev => ({ ...prev, visible: false })), 3000);
+    };
 
     const fetchCart = async () => {
         try {
@@ -32,69 +47,151 @@ const Scanner = () => {
         }
     };
 
-    // Initial load
+    const [productMap, setProductMap] = useState({});
+
+    // Fetch full product list for offline-like instant lookup
     useEffect(() => {
+        axios.get('/api/stock')
+            .then(res => {
+                const map = {};
+                if (Array.isArray(res.data)) {
+                    res.data.forEach(p => {
+                        if (p.barcodedata) {
+                            map[p.barcodedata] = p;
+                        }
+                    });
+                }
+                setProductMap(map);
+            })
+            .catch(err => console.log("Background product sync failed", err));
+
         fetchCart();
         fetchRecommendations();
     }, []);
 
     const handleScanSuccess = async (decodedText, decodedResult) => {
         const now = Date.now();
-        // Debounce: Ignore same code if scanned within 2 seconds
-        if (decodedText === lastScannedCode.current && (now - lastScannedTime.current) < 2000) {
+        // Debounce: Ignore same code if scanned within 0.3 seconds
+        if (decodedText === lastScannedCode.current && (now - lastScannedTime.current) < 300) {
             return;
         }
 
         lastScannedCode.current = decodedText;
         lastScannedTime.current = now;
 
-        console.log(`Scan result: ${decodedText}`);
+        // Check local map for instant result
+        const localProduct = productMap[decodedText];
+
+        if (localProduct) {
+            console.log(`Instant Scan: ${localProduct.product_name}`);
+
+            // Play Success Sound Immediately
+            const chime = new Audio(successSound);
+            chime.play().catch(e => { });
+
+            // Optimistic Update
+            setScannedItems(prev => {
+                const newItems = [...prev];
+                const existingItemIndex = newItems.findIndex(i => i.name === localProduct.product_name);
+
+                if (existingItemIndex >= 0) {
+                    newItems[existingItemIndex] = {
+                        ...newItems[existingItemIndex],
+                        quantity: newItems[existingItemIndex].quantity + 1
+                    };
+                } else {
+                    newItems.push({
+                        name: localProduct.product_name,
+                        price: parseFloat(localProduct.product_price),
+                        quantity: 1
+                    });
+                }
+                return newItems;
+            });
+
+            setTotalPrice(prev => prev + parseFloat(localProduct.product_price));
+            setLastScanned(localProduct.product_name);
+            showToast(`Added: ${localProduct.product_name}`, 'success');
+
+            // Sync with backend seamlessly (no spinner needed)
+            try {
+                await axios.post('/scan-item', { barcode: decodedText });
+            } catch (err) {
+                console.error("Sync error", err);
+                // If sync fails, we might want to revert, but for now we assume it works
+            }
+
+            return; // Skip the slow path
+        }
+
+        // Fallback for unknown items: Normal flow with spinner
+        console.log(`Server Scan: ${decodedText}`);
+
+        // Immediate feedback: Beep
+        const beep = new Audio(beepSound);
+        beep.play().catch(e => console.log('Sound error', e));
+
+        setPendingScans(prev => prev + 1);
 
         try {
             const res = await axios.post('/scan-item', { barcode: decodedText });
 
             if (res.data.status === 'success') {
-                const beep = new Audio('/static/sounds/success.mp3');
-                beep.play().catch(e => console.log('Sound error', e));
-                alert(`Added: ${res.data.product}`);
-                fetchCart();
+                // Success Chime (if not played already)
+                const chime = new Audio(successSound);
+                chime.play().catch(e => console.log('Sound error', e));
+
+                setLastScanned(res.data.product);
+                showToast(`Added: ${res.data.product}`, 'success');
+
+                if (res.data.cart) {
+                    setScannedItems(res.data.cart.products || []);
+                    setTotalPrice(res.data.cart.total_prize || 0);
+                } else {
+                    fetchCart();
+                }
             } else {
-                alert(res.data.message || "Product not found");
+                showToast(res.data.message || "Product not found", 'error');
             }
         } catch (err) {
             console.error("Scan API error detail:", err);
-            if (err.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                alert(`Server Error: ${err.response.status} - ${err.response.data.message || err.response.statusText}`);
-            } else if (err.request) {
-                // The request was made but no response was received
-                alert("Network Error: No response from server. Check if backend is running.");
-            } else {
-                // Something happened in setting up the request that triggered an Error
-                alert(`Error: ${err.message}`);
+            showToast("Scanner Error: " + (err.response?.data?.message || err.message), 'error');
+        } finally {
+            setPendingScans(prev => Math.max(0, prev - 1));
+        }
+    };
+
+    // Helper to safely stop scanner
+    const stopScanner = async () => {
+        if (scannerRef.current) {
+            try {
+                if (scannerRef.current.isScanning) {
+                    await scannerRef.current.stop();
+                }
+                scannerRef.current.clear();
+            } catch (err) {
+                console.warn("Scanner stop/clear error:", err);
             }
+            scannerRef.current = null;
         }
     };
 
     useEffect(() => {
-        // Start scanner when 'scanning' state becomes true
+        let isMounted = true;
+
         if (scanning) {
             const startScanner = async () => {
                 try {
-                    // Ensure previous instance is stopped/cleared
-                    if (scannerRef.current) {
-                        try {
-                            await scannerRef.current.stop();
-                        } catch (e) { /* ignore if not running */ }
-                        scannerRef.current = null;
-                    }
+                    // Safety check: make sure any previous instance is dead
+                    await stopScanner();
+
+                    if (!isMounted) return;
 
                     const html5QrCode = new Html5Qrcode("reader");
                     scannerRef.current = html5QrCode;
 
                     const config = {
-                        fps: 10,
+                        fps: 20,
                         qrbox: { width: 250, height: 250 },
                         formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.QR_CODE]
                     };
@@ -104,70 +201,144 @@ const Scanner = () => {
                         config,
                         handleScanSuccess,
                         (errorMessage) => {
-                            // console.log(errorMessage); // verbose
+                            // verbose logging off
                         }
                     );
                 } catch (err) {
                     console.error("Error starting scanner", err);
-                    setScanning(false);
-                    alert("Failed to start camera. Please ensure you gave permission.");
+                    if (isMounted) {
+                        setScanning(false);
+                        showToast("Failed to start camera. Check permissions.", 'error');
+                    }
                 }
             };
 
-            // Allow a small tick for DOM element #reader to be ready
-            setTimeout(startScanner, 100);
-        } else {
-            // Cleanup when scanning becomes false
-            if (scannerRef.current) {
-                scannerRef.current.stop().then(() => {
-                    scannerRef.current.clear();
-                    scannerRef.current = null;
-                }).catch(err => {
-                    console.warn("Failed to stop scanner", err);
-                });
-            }
+            // Small delay to ensure DOM is ready
+            const timer = setTimeout(startScanner, 100);
+            return () => clearTimeout(timer);
         }
 
-        // Cleanup on unmount
+        // Cleanup function for unmount or dependency change
         return () => {
+            isMounted = false;
+            // logic moved to stopScanner, but we can't await in cleanup.
+            // Best effort stop if component unmounts while scanning.
             if (scannerRef.current) {
-                try {
-                    scannerRef.current.stop();
-                    scannerRef.current.clear();
-                } catch (e) { console.warn(e); }
+                scannerRef.current.stop().catch(() => { }).finally(() => {
+                    if (scannerRef.current) try { scannerRef.current.clear(); } catch (e) { }
+                });
             }
         };
     }, [scanning]);
 
-    const handleStartScan = () => setScanning(true);
-    const handleStopScan = () => setScanning(false);
+    const handleStartScan = () => {
+        setScanning(true);
+        const scanStart = new Audio(scanSound);
+        scanStart.play().catch(e => console.log('Scan start sound error', e));
+    };
+
+    const handleStopScan = async () => {
+        await stopScanner();
+        setScanning(false);
+        const thanks = new Audio(thankyouSound);
+        thanks.play().catch(e => console.log('Thanks sound error', e));
+    };
+
+
 
     const handleRemoveItem = async (productName) => {
+        // Optimistic Update: Remove immediately from UI
+        const itemToRemove = scannedItems.find(item => item.name === productName);
+        const itemTotal = itemToRemove ? itemToRemove.price * itemToRemove.quantity : 0;
+
+        setScannedItems(prev => prev.filter(item => item.name !== productName));
+        setTotalPrice(prev => prev - itemTotal);
+        showToast(`Removed: ${productName}`, 'remove');
+
         try {
-            await axios.post('/remove-item', { product_name: productName });
-            fetchCart();
+            const res = await axios.post('/remove-item', { product_name: productName });
+
+            // Sync with backend truth
+            if (res.data.cart) {
+                setScannedItems(res.data.cart.products || []);
+                setTotalPrice(res.data.cart.total_prize || 0);
+            }
         } catch (err) {
             console.error(err);
-            alert("Failed to remove item");
+            // Revert on failure by fetching actual state
+            fetchCart();
+            showToast("Failed to remove item", 'error');
         }
     };
 
+
     const handleGenerateBill = () => {
+        // Save current cart state to ensure Bill matches UI exactly
+        localStorage.setItem('billData', JSON.stringify({
+            products: scannedItems,
+            total_prize: totalPrice
+        }));
         window.open('/bill', '_blank', 'width=600,height=800');
     };
 
     return (
-        <div className="fade-in" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-            <h1>Smart Shopping Scanner</h1>
+        <div className="fade-in" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
+            {/* Custom Toast Notification */}
+            {toast.visible && (
+                <div style={{
+                    position: 'fixed',
+                    top: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: toast.type === 'error' ? '#ef4444' : toast.type === 'remove' ? '#dc2626' : toast.type === 'info' ? '#3b82f6' : '#22c55e',
+                    color: 'white',
+                    padding: '12px 24px',
+                    borderRadius: '50px',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                    zIndex: 2000,
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    animation: 'slideDown 0.3s ease-out'
+                }}>
+                    <span>{toast.type === 'error' ? '⚠️' : toast.type === 'remove' ? '🗑️' : '✅'}</span>
+                    {toast.message}
+                </div>
+            )}
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <h1 style={{ margin: 0 }}>Smart Scanner</h1>
+                {lastScanned && (
+                    <div className="fade-in" style={{ background: '#dcfce7', padding: '8px 16px', borderRadius: '20px', color: '#166534', fontWeight: '600' }}>
+                        Last Scanned: {lastScanned}
+                    </div>
+                )}
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 1fr', gap: '20px' }}>
                 {/* Left Column: Camera */}
-                <div className="card" style={{ backgroundColor: 'white', minHeight: '400px', position: 'relative' }}>
-                    {scanning && <div id="reader" style={{ width: '100%', height: '100%' }}></div>}
+                <div className="card" style={{ backgroundColor: 'white', minHeight: '400px', position: 'relative', overflow: 'hidden' }}>
+                    {/* Always keep the reader element in DOM to prevent cleanup crash, hide it when not scanning */}
+                    <div
+                        id="reader"
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            borderRadius: '12px',
+                            display: scanning ? 'block' : 'none'
+                        }}
+                    ></div>
 
                     {!scanning && (
                         <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                            <h3>Ready to Shop?</h3>
+                            <div style={{ marginBottom: '16px' }}>
+                                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                            </div>
+                            <h3 style={{ marginBottom: '20px' }}>Ready to Scan</h3>
                             <button className="btn btn-primary" onClick={handleStartScan} style={{ fontSize: '1.2em', padding: '15px 30px' }}>
                                 Start Camera
                             </button>
@@ -175,8 +346,23 @@ const Scanner = () => {
                     )}
 
                     {scanning && (
-                        <button className="btn btn-danger" onClick={handleStopScan} style={{ marginTop: '10px', width: '100%' }}>
-                            Stop Camera
+                        <button
+                            type="button"
+                            className="btn btn-danger"
+                            onClick={(e) => { e.preventDefault(); handleStopScan(); }}
+                            style={{
+                                position: 'absolute',
+                                bottom: '20px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                zIndex: 10,
+                                width: 'auto',
+                                padding: '10px 30px',
+                                boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                                fontSize: '1rem'
+                            }}
+                        >
+                            Stop Scanning
                         </button>
                     )}
                 </div>
@@ -224,7 +410,19 @@ const Scanner = () => {
                                         </td>
                                     </tr>
                                 ))}
-                                {scannedItems.length === 0 && (
+                                {isAdding && (
+                                    <tr style={{ background: '#f0fdf4', animation: 'pulse 1s infinite' }}>
+                                        <td style={{ padding: '10px', color: '#166534', fontWeight: 'bold' }}>
+                                            Scanning found...
+                                        </td>
+                                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                                            <div className="spinner-small" style={{ border: '2px solid #22c55e', borderTopColor: 'transparent', borderRadius: '50%', width: '16px', height: '16px', animation: 'spin 1s linear infinite', margin: '0 auto' }}></div>
+                                        </td>
+                                        <td style={{ padding: '10px', textAlign: 'right' }}>...</td>
+                                        <td style={{ padding: '10px', textAlign: 'center' }}>...</td>
+                                    </tr>
+                                )}
+                                {!isAdding && scannedItems.length === 0 && (
                                     <tr>
                                         <td colSpan="4" style={{ padding: '30px', textAlign: 'center', color: '#ccc' }}>
                                             Cart is empty. Scan products to begin!
@@ -242,13 +440,12 @@ const Scanner = () => {
                     </div>
                 </div>
             </div>
-
             {/* Recommendations */}
             <div style={{ marginTop: '30px' }}>
                 <h3>You might also like</h3>
                 <div style={{ display: 'flex', gap: '15px', overflowX: 'auto', paddingBottom: '10px' }}>
                     {recommendations.map((rec, i) => (
-                        <div key={i} className="card" style={{ minWidth: '200px', backgroundColor: 'white', padding: '10px' }}>
+                        <div key={i} className="product-card" style={{ minWidth: '200px', padding: '10px' }}>
                             <img src={rec.image} style={{ width: '100%', height: '120px', objectFit: 'contain' }} alt={rec.name} />
                             <h5 style={{ margin: '10px 0 5px', fontSize: '14px' }}>{rec.name}</h5>
                             <div style={{ fontWeight: 'bold', color: '#e74c3c' }}>₹{rec.price}</div>
@@ -256,6 +453,13 @@ const Scanner = () => {
                     ))}
                 </div>
             </div>
+
+            <style>{`
+                @keyframes slideDown {
+                    from { transform: translate(-50%, -20px); opacity: 0; }
+                    to { transform: translate(-50%, 0); opacity: 1; }
+                }
+            `}</style>
         </div>
     );
 };

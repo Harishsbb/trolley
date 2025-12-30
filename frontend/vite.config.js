@@ -9,7 +9,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5003',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        secure: false
       },
 
       '/login': 'http://localhost:5003',
@@ -29,6 +29,7 @@ export default defineConfig({
       '/search': 'http://localhost:5003',
       '/register-scanner': 'http://localhost:5003',
       '/user-details': 'http://localhost:5003',
+      '/static': 'http://localhost:5003',
     }
   }
 })

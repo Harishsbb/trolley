@@ -117,7 +117,14 @@ def scan_item():
         # Save back to DB
         update_cart_in_db(current_products, total_price)
         
-        return jsonify({"status": "success", "product": product['product_name']})
+        return jsonify({
+            "status": "success", 
+            "product": product['product_name'],
+            "cart": {
+                "products": current_products,
+                "total_prize": total_price
+            }
+        })
     except Exception as e:
         print(f"CRITICAL ERROR in scan_item: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -147,7 +154,14 @@ def remove_item():
         
         update_cart_in_db(new_products, total_price)
         
-        return jsonify({"status": "success", "message": "Item removed"})
+        return jsonify({
+            "status": "success", 
+            "message": "Item removed",
+            "cart": {
+                "products": new_products,
+                "total_prize": total_price
+            }
+        })
     except Exception as e:
         print(f"Remove error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -159,121 +173,163 @@ def start_scanning():
          update_cart_in_db([], 0.0)
     return jsonify({"status": "Cart cleared"})
 
-@app.route('/')
-def home():
-    if 'loggedin' in session:
-        return redirect(url_for('home_page'))
-    return redirect(url_for('login'))
-
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        # Handles raw JSON from axios (react) OR form data (html)
-        if request.is_json:
-            data = request.get_json()
-            username = data.get('username')
-            password = data.get('password')
-        else:
-            username = request.form.get('username')
-            password = request.form.get('password')
+    data = request.get_json() if request.is_json else request.form
+    username = data.get('username')
+    password = data.get('password')
 
-        db = get_db()
-        account = db.users.find_one({"username": username})
+    db = get_db()
+    account = db.users.find_one({"username": username})
 
-        if account and check_password_hash(account['password'], password):
-            session['loggedin'] = True
-            session['username'] = account['username']
-            return jsonify({"status": "success"}) if request.is_json else redirect(url_for('home_page'))
-        else:
-            msg = 'Invalid credentials'
-            return jsonify({"status": "error", "message": msg}) if request.is_json else render_template('login.html', error=msg)
-
-    return render_template('login.html')
-
-@app.route('/home')
-def home_page():
-    if 'loggedin' in session:
-        return render_template('home.html', username=session['username'])
-    return redirect(url_for('login'))
+    if account and check_password_hash(account['password'], password):
+        session['loggedin'] = True
+        session['username'] = account['username']
+        # Also store role if needed in session
+        role = 'admin' if 'admin' in username.lower() else 'customer'
+        session['role'] = role
+        return jsonify({"status": "success", "username": username, "role": role})
+    else:
+        return jsonify({"status": "error", "message": "Invalid credentials"}), 401
 
 @app.route('/logout', methods=['POST'])
 def logout():
     session.clear()
-    return redirect(url_for('login'))
+    return jsonify({"status": "success", "message": "Logged out"})
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['POST'])
 def register():
-    if request.method == 'POST':
-        if request.is_json:
-            data = request.get_json()
-            username = data.get('username')
-            password = data.get('password')
-            email = data.get('email')
-        else:
-            username = request.form.get('username')
-            password = request.form.get('password')
-            email = request.form.get('email')
+    data = request.get_json() if request.is_json else request.form
+    username = data.get('username')
+    password = data.get('password')
+    email = data.get('email')
+        
+    db = get_db()
+    
+    if db.users.find_one({"username": username}):
+            return jsonify({"status": "error", "message": "User with this username already exists"}), 409
             
-        db = get_db()
-        hashed_password = generate_password_hash(password)
-        
-        if db.users.find_one({"username": username}):
-             return jsonify({"status": "error", "message": "User exists"}) if request.is_json else "User exists"
-             
-        db.users.insert_one({
-            "username": username,
-            "password": hashed_password,
-            "email": email,
-            "created_at": datetime.now()
-        })
-        
-        return jsonify({"status": "success"}) if request.is_json else redirect(url_for('login'))
-        
-    return render_template('register.html')
+    hashed_password = generate_password_hash(password)
+    db.users.insert_one({
+        "username": username,
+        "password": hashed_password,
+        "email": email,
+        "created_at": datetime.now()
+    })
+    
+    return jsonify({"status": "success", "message": "User created successfully"})
 
 # Stock/Sales Routines (kept relatively same)
 @app.route('/api/stock')
 def get_stock():
     db = get_db()
-    stock_data = list(db.products.find({}, {'_id': 0}))
+    products_cursor = db.products.find({})
+    stock_data = []
+    for p in products_cursor:
+        p['_id'] = str(p['_id'])
+        stock_data.append(p)
     return jsonify(stock_data)
+
+@app.route('/api/product/edit', methods=['POST'])
+def edit_product():
+    if 'username' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.json
+    p_id = data.get('id')
+    
+    if not p_id:
+        return jsonify({"status": "error", "message": "Product ID required"}), 400
+
+    update_fields = {}
+    if 'name' in data: update_fields['product_name'] = data['name']
+    if 'price' in data: update_fields['product_price'] = data['price']
+    if 'image' in data: update_fields['image'] = data['image']
+    if 'barcode' in data: update_fields['barcodedata'] = data['barcode']
+    
+    try:
+        db = get_db()
+        db.products.update_one({'_id': ObjectId(p_id)}, {'$set': update_fields})
+        return jsonify({"status": "success", "message": "Product updated"})
+    except Exception as e:
+        print(f"Edit error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/search', methods=['GET'])
 def search():
-    query = request.args.get('query', '')
+    query = request.args.get('query', '').strip()
     db = get_db()
-    results = []
-    if db is not None:
-        # Simple regex search
-        products = list(db.products.find({"product_name": {"$regex": query, "$options": "i"}}))
+    if db is None: return jsonify([])
+
+    # Fetch all products (for small dataset this is fine)
+    # For scalable solutions, use MongoDB Atlas Search or text indexes
+    all_products = list(db.products.find({}))
+    
+    if not query:
+        # Return all products if query is empty (Gallery Mode)
+        results = []
         seen_names = set()
+        for p in all_products:
+             raw_name = p.get('product_name', '')
+             if not raw_name: continue
+             norm_name = raw_name.strip()
+             if norm_name not in seen_names:
+                 results.append({
+                        "id": str(p.get('_id')),
+                        "name": raw_name,
+                        "price": p.get('product_price'),
+                        "image": p.get('image', '/static/images/placeholder.svg'),
+                        "description": p.get('description', ''),
+                        "location": p.get("location", "")
+                 })
+                 seen_names.add(norm_name)
+        return jsonify(results)
+
+    query_lower = query.lower()
+    scored_results = []
+    seen_names = set()
+
+    from difflib import SequenceMatcher
+
+    for p in all_products:
+        raw_name = p.get('product_name', '')
+        if not raw_name: continue
         
-        for p in products:
-            raw_name = p.get('product_name', '')
-            # Normalize for duplicate check
+        name_lower = raw_name.lower()
+        
+        # Calculate Match Score
+        if name_lower == query_lower:
+            score = 100 # Exact match
+        elif name_lower.startswith(query_lower):
+            score = 90 # Prefix match
+        elif query_lower in name_lower:
+            score = 80 # Substring match
+        else:
+            # Fuzzy match
+            score = SequenceMatcher(None, query_lower, name_lower).ratio() * 100
+        
+        # Threshold for fuzzy: e.g., 50% similarity
+        if score > 40:
             norm_name = raw_name.strip()
-            
-            if norm_name and norm_name not in seen_names:
-                results.append({
-                    "id": str(p.get('_id')),
-                    "name": raw_name, # Keep original name for display
-                    "price": p.get('product_price'),
-                    "image": p.get('image', '/static/images/placeholder.svg'),
-                    "description": p.get('description', ''),
-                    "location": p.get("location", "") 
+            if norm_name not in seen_names:
+                scored_results.append({
+                    "data": {
+                        "id": str(p.get('_id')),
+                        "name": raw_name,
+                        "price": p.get('product_price'),
+                        "image": p.get('image', '/static/images/placeholder.svg'),
+                        "description": p.get('description', ''),
+                        "location": p.get("location", "")
+                    },
+                    "score": score
                 })
                 seen_names.add(norm_name)
+
+    # Sort: Higher score first
+    scored_results.sort(key=lambda x: x['score'], reverse=True)
     
-    # Sort results: Exact matches or "Starts with" query go to top
-    if query:
-        q_lower = query.lower()
-        results.sort(key=lambda x: (
-            0 if x['name'].lower() == q_lower else
-            1 if x['name'].lower().startswith(q_lower) else
-            2
-        ))
-        
-    return jsonify(results)
+    final_results = [item['data'] for item in scored_results]
+    
+    return jsonify(final_results)
 
 @app.route('/recommended', methods=['GET'])
 def recommended():
@@ -293,5 +349,91 @@ def recommended():
 
 # --- Vercel requires app to be exported as 'app' or 'application' ---
 
+@app.route('/api/product/add', methods=['POST'])
+def add_product():
+    if 'username' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.json
+    db = get_db()
+    
+    name = data.get('name')
+    qty = int(data.get('quantity', 0))
+    price = data.get('price')
+    image = data.get('image_url')
+    
+    # Check if exists by Name (Case insensitive match could be better, but strict for now)
+    existing = db.products.find_one({"product_name": name})
+    
+    if existing:
+        # Update existing stock
+        db.products.update_one(
+            {"_id": existing["_id"]},
+            {
+                "$inc": {"quantity": qty},
+                "$set": {
+                    "product_price": price, # Update price to latest
+                    "image": image if image else existing.get('image') # Update image if provided
+                }
+            }
+        )
+        return jsonify({"status": f"Updated stock for '{name}'. New Total: {existing['quantity'] + qty}"})
+
+    # Create new
+    new_product = {
+        "barcodedata": data.get('barcode', str(random.randint(1000000000000, 9999999999999))), 
+        "product_name": name,
+        "product_price": price,
+        "quantity": qty,
+        "image": image or "/static/images/placeholder.svg"
+    }
+    
+    db.products.insert_one(new_product)
+    return jsonify({"status": "Product added successfully"})
+
+@app.route('/api/product/update-stock', methods=['POST'])
+def update_stock():
+    if 'username' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.json
+    barcode = data.get('barcode')
+    change = int(data.get('change', 0))
+    
+    db = get_db()
+    
+    # Update quantity securely without affecting other fields
+    result = db.products.update_one(
+        {"$or": [{"barcodedata": barcode}, {"product_name": barcode}]},
+        {"$inc": {"quantity": change}}
+    )
+    
+    if result.modified_count > 0:
+         return jsonify({"status": "success", "message": "Stock updated"})
+    else:
+         return jsonify({"status": "error", "message": "Product not found"}), 404
+
+@app.route('/api/product/remove', methods=['POST'])
+def remove_product():
+    if 'username' not in session: return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.json
+    identifier = data.get('barcode') 
+    
+    db = get_db()
+    # Try deleting by name OR barcode
+    result = db.products.delete_one({
+        "$or": [
+            {"barcodedata": identifier},
+            {"product_name": identifier}
+        ]
+    })
+    
+    if result.deleted_count > 0:
+        return jsonify({"status": "Product removed successfully"})
+    else:
+        return jsonify({"status": "Product not found"})
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5003)
+    # usage_reloader=False prevents the "WinError 10038" socket error on Windows
+    # by stopping the double-process spawner. You will need to manually restart
+    # the server if you make code changes.
+    app.run(debug=True, use_reloader=False, port=5003)
