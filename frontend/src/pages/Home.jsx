@@ -41,11 +41,11 @@ const Home = () => {
                 top: 0,
                 zIndex: 10
             }}>
-                <div className="container" style={{
+                <div className="container header-content" style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    padding: '16px 24px'
+                    padding: '16px 0'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{

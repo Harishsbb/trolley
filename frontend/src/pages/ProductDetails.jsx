@@ -57,13 +57,13 @@ const ProductDetails = () => {
             justifyContent: 'center',
             alignItems: 'center'
         }}>
-            <div className="card" style={{
+            <div className="card details-card" style={{
                 backgroundColor: 'white',
                 display: 'flex',
                 flexDirection: 'column',
                 maxWidth: '1200px',
                 width: '95%',
-                height: '92vh', // Tweak height
+                height: '92vh',
                 position: 'relative',
                 padding: '30px',
                 overflow: 'hidden'
@@ -74,11 +74,11 @@ const ProductDetails = () => {
                     Product Location: {product.location || 'Section A'}
                 </h2>
 
-                <div style={{ display: 'flex', flex: 1, gap: '40px', height: '100%', overflow: 'hidden' }}>
+                <div className="responsive-split" style={{ display: 'flex', flex: 1, gap: '40px', height: '100%', overflow: 'hidden' }}>
 
                     {/* Left Side: Shelf Grid */}
                     <div style={{ flex: '2 1 600px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{
+                        <div className="details-shelf-grid" style={{
                             display: 'grid',
                             gridTemplateColumns: 'repeat(5, 1fr)',
                             gridTemplateRows: 'repeat(4, 1fr)',

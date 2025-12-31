@@ -9,6 +9,32 @@ const Search = () => {
     const [displayedProducts, setDisplayedProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Helper: Define Categories Heuristic (Moved up for reuse)
+    const getCategory = (name) => {
+        const n = name.toLowerCase();
+
+        // Snacks & Breakfast
+        if (n.match(/biscuit|cookie|rusk|wafer|cracker|good day|tiger|parle|britannia|sunfeast|treat|marie|monaco|oreo|bourbon/)) return 'Snacks';
+        if (n.match(/chip|lays|lay's|bingo|kurkure|puff|nacho|popcorn|snack|mixture|bhujia|sev|murukku/)) return 'Snacks';
+        if (n.match(/chocolate|choco|candy|bar|sweet|cake|brownie|muffin|donut|dessert|ice cream|dark fantasy|mom's magic|hide & seek/)) return 'Snacks';
+        if (n.match(/noodle|pasta|maggi|yippee|top ramen|soup|instant|cup|flake|cereal|kellogg|oats|breakfast/)) return 'Snacks';
+
+        // Beverages (Use word boundaries \b to avoid matches like 'fanta' inside 'fantasy')
+        if (n.match(/\b(juice|drink|soda|cola|coke|pepsi|sprite|fanta|limca|thums up|7up|mirinda|maaza|slice|frooti|appy|fizz)\b/)) return 'Beverages';
+        if (n.match(/\b(water|coffee|tea|milk|shake|smoothie|brew|red bull|energy|squash|syrup|bot|bottle)\b/)) return 'Beverages';
+
+        // Household
+        if (n.match(/soap|shampoo|conditioner|wash|cleaner|detergent|laundry|rin|surf|ariel|tide|vim|dettol|lysol|harpic/)) return 'Household & Personal Care';
+        if (n.match(/tooth|paste|brush|colgate|pepsodent|sensodyne|close up|himalaya|mouthwash|shave|razor|blade|tissue|napkin|diaper/)) return 'Household & Personal Care';
+        if (n.match(/perfume|deo|spray|scent|cream|lotion|moisturizer|powder|cosmetic|face|body/)) return 'Household & Personal Care';
+
+        // Pantry
+        if (n.match(/oil|ghee|butter|cheese|paneer|curd|yogurt|cream/)) return 'Pantry & Dairy';
+        if (n.match(/rice|dal|lentil|pulse|flour|atta|maida|sooji|sugar|salt|spice|masala|chilli|turmeric|honey|jam|sauce|ketchup/)) return 'Pantry & Dairy';
+
+        return 'Others';
+    };
+
     // Fetch all products with cache-first strategy
     useEffect(() => {
         const fetchAllProducts = async () => {
@@ -87,6 +113,7 @@ const Search = () => {
             let score = 0;
 
             if (name === lowerQuery) score = 100;
+            else if (getCategory(product.name).toLowerCase().includes(lowerQuery)) score = 85;
             else if (name.startsWith(lowerQuery)) score = 90;
             else if (name.includes(lowerQuery)) score = 75;
             else {
@@ -111,7 +138,7 @@ const Search = () => {
         <div className="fade-in" style={{ paddingBottom: '60px' }}>
             {/* Header Section */}
             <div style={{ background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #e2e8f0' }}>
-                <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px' }}>
+                <div className="container header-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
                     <Link to="/home" className="btn btn-ghost" style={{ padding: '8px 16px', borderRadius: '12px' }}>
                         &larr; Back
                     </Link>
@@ -138,46 +165,99 @@ const Search = () => {
                 </div>
 
                 {/* Loading State */}
+                {/* Loading State */}
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
                         <div style={{ fontSize: '2rem', marginBottom: '16px' }}>⏳</div>
                         <p>Loading fresh catalog...</p>
                     </div>
                 ) : (
-                    /* Product Grid */
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '32px' }}>
-                        {displayedProducts.map((product) => (
-                            <div key={product.id} className="product-card fade-in">
-                                <div className="product-image-container">
-                                    <img
-                                        src={product.image}
-                                        alt={product.name}
-                                        className="product-image"
-                                        onError={(e) => { e.target.src = '/static/images/placeholder.svg'; }}
-                                    />
-                                </div>
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                        <h3 className="product-title">{product.name}</h3>
-                                        <span className="badge-price">₹{product.price}</span>
-                                    </div>
-                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.4' }}>
-                                        In Stock • Fresh
-                                    </p>
-                                    <Link to={`/product/${product.id}`} className="btn btn-primary" style={{ marginTop: 'auto', width: '100%' }}>
-                                        View Details
-                                    </Link>
-                                </div>
-                            </div>
-                        ))}
-
-                        {displayedProducts.length === 0 && (
+                    /* Grouped Product Grid */
+                    <div>
+                        {displayedProducts.length === 0 ? (
                             <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
                                 <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🧐</div>
                                 <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '8px' }}>No products found</h3>
                                 <p style={{ color: 'var(--text-muted)' }}>Try searching for generic terms like "juice" or "biscuit"</p>
                                 <button className="btn btn-ghost" onClick={() => setQuery('')} style={{ marginTop: '16px' }}>Clear Search</button>
                             </div>
+                        ) : (
+                            (() => {
+                                // 2. Group Products
+                                const grouped = displayedProducts.reduce((acc, product) => {
+                                    const cat = getCategory(product.name);
+                                    if (!acc[cat]) acc[cat] = [];
+                                    acc[cat].push(product);
+                                    return acc;
+                                }, {});
+
+                                // 3. Define Display Order
+                                const categoryOrder = ['Snacks', 'Beverages', 'Pantry & Dairy', 'Household & Personal Care', 'Others'];
+
+                                return categoryOrder.map(category => {
+                                    const products = grouped[category];
+                                    if (!products || products.length === 0) return null;
+
+                                    return (
+                                        <div key={category} className="fade-in" style={{ marginBottom: '48px' }}>
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                                marginBottom: '24px',
+                                                paddingBottom: '12px',
+                                                borderBottom: '2px solid #f1f5f9'
+                                            }}>
+                                                <h3 style={{
+                                                    fontSize: '1.5rem',
+                                                    fontWeight: '700',
+                                                    color: 'var(--text-main)',
+                                                    margin: 0
+                                                }}>
+                                                    {category}
+                                                </h3>
+                                                <span style={{
+                                                    background: 'var(--primary)',
+                                                    color: 'white',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '12px',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    {products.length}
+                                                </span>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '32px' }}>
+                                                {products.map((product) => (
+                                                    <div key={product.id} className="product-card">
+                                                        <div className="product-image-container">
+                                                            <img
+                                                                src={product.image}
+                                                                alt={product.name}
+                                                                className="product-image"
+                                                                onError={(e) => { e.target.src = '/static/images/placeholder.svg'; }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                                                <h3 className="product-title">{product.name}</h3>
+                                                                <span className="badge-price">₹{product.price}</span>
+                                                            </div>
+                                                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.4' }}>
+                                                                In Stock • Fresh
+                                                            </p>
+                                                            <Link to={`/product/${product.id}`} className="btn btn-primary" style={{ marginTop: 'auto', width: '100%' }}>
+                                                                View Details
+                                                            </Link>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()
                         )}
                     </div>
                 )}

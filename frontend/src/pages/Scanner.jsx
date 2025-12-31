@@ -300,7 +300,9 @@ const Scanner = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
-                    animation: 'slideDown 0.3s ease-out'
+                    animation: 'slideDown 0.3s ease-out',
+                    maxWidth: '90%',
+                    width: 'max-content'
                 }}>
                     <span>{toast.type === 'error' ? '⚠️' : toast.type === 'remove' ? '🗑️' : '✅'}</span>
                     {toast.message}
@@ -316,7 +318,7 @@ const Scanner = () => {
                 )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 1fr', gap: '20px' }}>
+            <div className="scanner-layout" style={{ display: 'grid', gap: '20px' }}>
                 {/* Left Column: Camera */}
                 <div className="card" style={{ backgroundColor: 'white', minHeight: '400px', position: 'relative', overflow: 'hidden' }}>
                     {/* Always keep the reader element in DOM to prevent cleanup crash, hide it when not scanning */}
@@ -374,7 +376,7 @@ const Scanner = () => {
                         <span style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#27ae60' }}>₹{totalPrice.toFixed(2)}</span>
                     </div>
 
-                    <div style={{ height: '300px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '8px', marginBottom: '15px' }}>
+                    <div style={{ height: '300px', overflow: 'auto', border: '1px solid #eee', borderRadius: '8px', marginBottom: '15px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead style={{ position: 'sticky', top: 0, background: '#f8f9fa' }}>
                                 <tr>

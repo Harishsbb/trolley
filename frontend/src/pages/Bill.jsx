@@ -38,7 +38,7 @@ const Bill = () => {
     if (loading) return <div style={{ textAlign: 'center', padding: '50px' }}>Loading Bill...</div>;
 
     return (
-        <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
+        <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', width: '100%', maxWidth: '600px', margin: '0 auto', boxSizing: 'border-box' }}>
             <div style={{
                 position: 'relative',
                 padding: '20px',
@@ -65,28 +65,30 @@ const Bill = () => {
 
                 <h1 style={{ textAlign: 'center', color: '#333' }}>Your Bill</h1>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', backgroundColor: 'white' }}>
-                    <thead>
-                        <tr style={{ backgroundColor: '#f2f2f2' }}>
-                            <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>S.No</th>
-                            <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>Product Name</th>
-                            <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>Price</th>
-                            <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>Quantity</th>
-                            <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {products.map((product, index) => (
-                            <tr key={index}>
-                                <td style={{ border: '1px solid #000', padding: '10px' }}>{index + 1}</td>
-                                <td style={{ border: '1px solid #000', padding: '10px' }}>{product.name}</td>
-                                <td style={{ border: '1px solid #000', padding: '10px' }}>{product.price}</td>
-                                <td style={{ border: '1px solid #000', padding: '10px' }}>{product.quantity}</td>
-                                <td style={{ border: '1px solid #000', padding: '10px' }}>{product.price * product.quantity}</td>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', backgroundColor: 'white' }}>
+                        <thead>
+                            <tr style={{ backgroundColor: '#f2f2f2' }}>
+                                <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>S.No</th>
+                                <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>Product Name</th>
+                                <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>Price</th>
+                                <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>Quantity</th>
+                                <th style={{ border: '1px solid #000', padding: '10px', textAlign: 'left' }}>Total</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {products.map((product, index) => (
+                                <tr key={index}>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>{index + 1}</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>{product.name}</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>{product.price}</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>{product.quantity}</td>
+                                    <td style={{ border: '1px solid #000', padding: '10px' }}>{product.price * product.quantity}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
                 <div style={{ textAlign: 'right', fontSize: '1.2em', fontWeight: 'bold' }}>
                     Total: {Number(totalPrice).toFixed(2)} rupees

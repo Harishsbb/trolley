@@ -19,6 +19,7 @@ const Register = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError(''); // Clear previous errors
         try {
             const data = new FormData();
             data.append('username', formData.username);
@@ -27,20 +28,20 @@ const Register = () => {
 
             const response = await axios.post('/register', data);
 
-            // Check for success based on response
-            // If registration is successful, backend flashes message and redirects to login
-            if (response.request.responseURL.includes('/login')) {
+            if (response.data.status === 'success') {
                 navigate('/login');
-            } else if (response.data.includes('already exists')) {
-                setError('Account with this username or email already exists.');
             } else {
-                // Fallback incase of successful registration without clear signal, 
-                // usually redirect to login is enough.
+                // Should not usually reach here for errors if backend returns non-200
                 navigate('/login');
             }
         } catch (err) {
             console.error(err);
-            setError('Registration failed. Please try again.');
+            if (err.response && err.response.data && err.response.data.message) {
+                // Display the specific error from backend (e.g. "User with this username already exists")
+                setError(err.response.data.message);
+            } else {
+                setError('Registration failed. Please check your connection.');
+            }
         }
     };
 

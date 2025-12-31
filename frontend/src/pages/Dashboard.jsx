@@ -206,7 +206,7 @@ const Dashboard = () => {
             paddingBottom: '60px'
         }}>
             {/* Navbar / Header */}
-            <div style={{
+            <div className="dashboard-header" style={{
                 background: 'white',
                 borderBottom: '1px solid #e2e8f0',
                 padding: '16px 24px',
@@ -216,16 +216,18 @@ const Dashboard = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                flexWrap: 'wrap',
+                gap: '10px'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 'min-content' }}>
                     <div style={{
                         width: '40px', height: '40px', borderRadius: '10px',
                         background: 'linear-gradient(135deg, #4f46e5 0%, #ec4899 100%)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: 'white', fontSize: '1.2rem'
+                        color: 'white', fontSize: '1.2rem', flexShrink: 0
                     }}>🛍️</div>
-                    <span style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: '#1e293b' }}>
+                    <span className="dashboard-title" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: '#1e293b' }}>
                         SnapShop <span style={{ fontWeight: '400', color: '#64748b' }}>Admin</span>
                     </span>
                 </div>
@@ -240,7 +242,8 @@ const Dashboard = () => {
                     padding: '8px 16px',
                     borderRadius: '50px',
                     background: '#f1f5f9',
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap'
                 }}>
                     <span>&larr;</span> Back to Home
                 </Link>
@@ -249,7 +252,7 @@ const Dashboard = () => {
             <div className="container" style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 24px' }}>
 
                 {/* Actions Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '32px' }}>
 
                     {/* Add Product Panel */}
                     <div style={{
@@ -386,7 +389,7 @@ const Dashboard = () => {
                             padding: '20px',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                             border: '1px solid #e2e8f0',
-                            height: '200px',
+                            height: '250px',
                             display: 'flex',
                             flexDirection: 'column'
                         }}>

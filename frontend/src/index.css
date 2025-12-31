@@ -239,3 +239,90 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--text-main) !important;
   transition: background-color 5000s ease-in-out 0s;
 }
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+  }
+
+  /* Scanner Page Mobile Layout */
+  .scanner-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Buttons on mobile */
+  .btn {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  /* Product grids */
+  .product-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Header adjustments */
+  .header-content {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .header-logo {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Split layout (Details Page) */
+  .responsive-split {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
+
+  /* Details Card specifics */
+  .details-card {
+    height: auto !important;
+    padding: 16px !important;
+    overflow: visible !important;
+  }
+
+  /* Details Grid */
+  .details-shelf-grid {
+    aspect-ratio: auto !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    /* Keep 5 cols to match logic */
+    gap: 5px !important;
+  }
+
+  /* Dashboard Adjustments */
+  .dashboard-header .header-content {
+    align-items: center !important;
+    gap: 12px;
+  }
+
+  .dashboard-header .header-logo {
+    width: auto !important;
+  }
+
+  /* Fix header text wrapping */
+  .dashboard-title {
+    font-size: 1.1rem !important;
+    white-space: nowrap;
+  }
+}
+
+/* Desktop override for when we use utility classes */
+@media (min-width: 769px) {
+  .scanner-layout {
+    grid-template-columns: minmax(300px, 1fr) 1fr;
+  }
+
+  .btn-auto-desktop {
+    width: auto;
+    margin-bottom: 0;
+  }
+}
