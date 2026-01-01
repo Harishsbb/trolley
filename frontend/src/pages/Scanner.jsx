@@ -48,20 +48,26 @@ const Scanner = () => {
     };
 
     const [productMap, setProductMap] = useState({});
+    const [productNameMap, setProductNameMap] = useState({});
 
     // Fetch full product list for offline-like instant lookup
     useEffect(() => {
         axios.get('/api/stock')
             .then(res => {
                 const map = {};
+                const nameMap = {};
                 if (Array.isArray(res.data)) {
                     res.data.forEach(p => {
                         if (p.barcodedata) {
                             map[p.barcodedata] = p;
                         }
+                        if (p.product_name) {
+                            nameMap[p.product_name] = p;
+                        }
                     });
                 }
                 setProductMap(map);
+                setProductNameMap(nameMap);
             })
             .catch(err => console.log("Background product sync failed", err));
 
@@ -71,8 +77,8 @@ const Scanner = () => {
 
     const handleScanSuccess = async (decodedText, decodedResult) => {
         const now = Date.now();
-        // Debounce: Ignore same code if scanned within 0.3 seconds
-        if (decodedText === lastScannedCode.current && (now - lastScannedTime.current) < 300) {
+        // Debounce: Ignore same code if scanned within 3 seconds
+        if (decodedText === lastScannedCode.current && (now - lastScannedTime.current) < 3000) {
             return;
         }
 
@@ -103,7 +109,8 @@ const Scanner = () => {
                     newItems.push({
                         name: localProduct.product_name,
                         price: parseFloat(localProduct.product_price),
-                        quantity: 1
+                        quantity: 1,
+                        image: localProduct.image || '/static/images/placeholder.svg'
                     });
                 }
                 return newItems;
@@ -378,7 +385,7 @@ const Scanner = () => {
 
                     <div style={{ height: '300px', overflow: 'auto', border: '1px solid #eee', borderRadius: '8px', marginBottom: '15px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead style={{ position: 'sticky', top: 0, background: '#f8f9fa' }}>
+                            <thead style={{ position: 'sticky', top: 0, background: '#f8f9fa', zIndex: 10 }}>
                                 <tr>
                                     <th style={{ padding: '10px', textAlign: 'left' }}>Item</th>
                                     <th style={{ padding: '10px', textAlign: 'center' }}>Qty</th>
@@ -390,7 +397,15 @@ const Scanner = () => {
                                 {scannedItems.map((item, idx) => (
                                     <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
                                         <td style={{ padding: '10px' }}>
-                                            <div style={{ fontWeight: 'bold' }}>{item.name}</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <img
+                                                    src={item.image || productNameMap[item.name]?.image || '/static/images/placeholder.svg'}
+                                                    alt=""
+                                                    style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'contain', background: '#f8fafc', border: '1px solid #e2e8f0', mixBlendMode: 'multiply' }}
+                                                    onError={(e) => { e.target.onerror = null; e.target.src = '/static/images/placeholder.svg'; }}
+                                                />
+                                                <div style={{ fontWeight: 'bold' }}>{item.name}</div>
+                                            </div>
                                         </td>
                                         <td style={{ padding: '10px', textAlign: 'center' }}>{item.quantity}</td>
                                         <td style={{ padding: '10px', textAlign: 'right' }}>₹{(item.price * item.quantity).toFixed(2)}</td>

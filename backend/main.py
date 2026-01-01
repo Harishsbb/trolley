@@ -108,7 +108,8 @@ def scan_item():
             current_products.append({
                 "name": product['product_name'],
                 "price": price,
-                "quantity": 1
+                "quantity": 1,
+                "image": product.get('image', '/static/images/placeholder.svg')
             })
             
         # Recalculate total
@@ -146,11 +147,21 @@ def remove_item():
         cart = get_cart_for_user()
         current_products = cart.get('products', [])
         
-        # Filter out the item to remove
-        new_products = [p for p in current_products if p['name'] != product_name]
+        target_name = str(product_name).strip().lower() if product_name else ""
+
+        # Filter out the item to remove (Robust case-insensitive comparison)
+        new_products = [
+            p for p in current_products 
+            if str(p.get('name', '')).strip().lower() != target_name
+        ]
         
-        # Recalculate total
-        total_price = sum(float(p['price']) * int(p['quantity']) for p in new_products)
+        # Recalculate total safely
+        total_price = 0.0
+        for p in new_products:
+            try:
+                total_price += float(p.get('price', 0)) * int(p.get('quantity', 0))
+            except (ValueError, TypeError):
+                continue
         
         update_cart_in_db(new_products, total_price)
         
@@ -245,6 +256,7 @@ def edit_product():
     if 'price' in data: update_fields['product_price'] = data['price']
     if 'image' in data: update_fields['image'] = data['image']
     if 'barcode' in data: update_fields['barcodedata'] = data['barcode']
+    if 'category' in data: update_fields['category'] = data['category']
     
     try:
         db = get_db()
@@ -279,7 +291,8 @@ def search():
                         "price": p.get('product_price'),
                         "image": p.get('image', '/static/images/placeholder.svg'),
                         "description": p.get('description', ''),
-                        "location": p.get("location", "")
+                        "location": p.get("location", ""),
+                        "category": p.get("category", "")
                  })
                  seen_names.add(norm_name)
         return jsonify(results)
@@ -318,7 +331,8 @@ def search():
                         "price": p.get('product_price'),
                         "image": p.get('image', '/static/images/placeholder.svg'),
                         "description": p.get('description', ''),
-                        "location": p.get("location", "")
+                        "location": p.get("location", ""),
+                        "category": p.get("category", "")
                     },
                     "score": score
                 })
@@ -342,7 +356,8 @@ def recommended():
              result.append({
                 "name": p.get("product_name"),
                 "price": p.get("product_price"),
-                "image": p.get("image", "/static/images/placeholder.svg")
+                "image": p.get("image", "/static/images/placeholder.svg"),
+                "category": p.get("category", "")
             })
         return jsonify(result)
     return jsonify([])
@@ -360,6 +375,7 @@ def add_product():
     qty = int(data.get('quantity', 0))
     price = data.get('price')
     image = data.get('image_url')
+    category = data.get('category')
     
     # Check if exists by Name (Case insensitive match could be better, but strict for now)
     existing = db.products.find_one({"product_name": name})
@@ -372,7 +388,8 @@ def add_product():
                 "$inc": {"quantity": qty},
                 "$set": {
                     "product_price": price, # Update price to latest
-                    "image": image if image else existing.get('image') # Update image if provided
+                    "image": image if image else existing.get('image'), # Update image if provided
+                    "category": category if category else existing.get('category')
                 }
             }
         )
@@ -384,7 +401,8 @@ def add_product():
         "product_name": name,
         "product_price": price,
         "quantity": qty,
-        "image": image or "/static/images/placeholder.svg"
+        "image": image or "/static/images/placeholder.svg",
+        "category": category
     }
     
     db.products.insert_one(new_product)

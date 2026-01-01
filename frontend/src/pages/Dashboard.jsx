@@ -24,10 +24,58 @@ ChartJS.register(
 
 const Dashboard = () => {
     const [products, setProducts] = useState([]);
-    const [formData, setFormData] = useState({ name: '', price: '', qty: '', imageUrl: '' });
+    const [formData, setFormData] = useState({ name: '', price: '', qty: '', imageUrl: '', category: 'Snacks', barcode: '' });
     const [removeName, setRemoveName] = useState('');
     const [loading, setLoading] = useState(true);
-    const [editingProduct, setEditingProduct] = useState(null); // { id, name, price, barcode, image }
+    const [editingProduct, setEditingProduct] = useState(null); // { id, name, price, barcode, image, category }
+
+    // Helper: Auto-categorize based on name if category is missing
+    const getCategory = (p) => {
+        if (p.category && p.category !== 'Uncategorized') return p.category;
+
+        const n = (p.product_name || p.name || '').toLowerCase();
+
+        // Snacks
+        if (n.match(/biscuit|cookie|rusk|wafer|cracker|good day|tiger|parle|britannia|sunfeast|treat|marie|monaco|oreo|bourbon/)) return 'Snacks';
+        if (n.match(/chip|lays|lay's|bingo|kurkure|puff|nacho|popcorn|snack|mixture|bhujia|sev|murukku/)) return 'Snacks';
+        if (n.match(/chocolate|choco|candy|bar|sweet|cake|brownie|muffin|donut|dessert|ice cream|dark fantasy|mom's magic|hide & seek/)) return 'Snacks';
+        if (n.match(/noodle|pasta|maggi|yippee|top ramen|soup|instant|cup|flake|cereal|kellogg|oats|breakfast/)) return 'Snacks';
+
+        // Beverages
+        if (n.match(/\b(juice|drink|soda|cola|coke|pepsi|sprite|fanta|limca|thums up|7up|mirinda|maaza|slice|frooti|appy|fizz)\b/)) return 'Beverages';
+        if (n.match(/\b(water|coffee|tea|milk|shake|smoothie|brew|red bull|energy|squash|syrup|bot|bottle)\b/)) return 'Beverages';
+
+        // Household
+        if (n.match(/soap|shampoo|conditioner|wash|cleaner|detergent|laundry|rin|surf|ariel|tide|vim|dettol|lysol|harpic|vanish/)) return 'Household & Personal Care';
+        if (n.match(/tooth|paste|brush|colgate|pepsodent|sensodyne|close up|himalaya|mouthwash|shave|razor|blade|tissue|napkin|diaper/)) return 'Household & Personal Care';
+        if (n.match(/perfume|deo|spray|scent|cream|lotion|moisturizer|powder|cosmetic|face|body/)) return 'Household & Personal Care';
+
+        // Pantry
+        if (n.match(/oil|ghee|butter|cheese|paneer|curd|yogurt|cream/)) return 'Pantry & Dairy';
+        if (n.match(/rice|dal|lentil|pulse|flour|atta|maida|sooji|sugar|salt|spice|masala|chilli|turmeric|honey|jam|sauce|ketchup/)) return 'Pantry & Dairy';
+
+        if (n.match(/fruit|apple|banana|orange|mango|grape|veg|onion|potato|tomato/)) return 'Fruits & Vegetables';
+
+        return 'Others';
+    };
+
+    const groupedProducts = products.reduce((acc, product) => {
+        const cat = getCategory(product);
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(product);
+        return acc;
+    }, {});
+
+    const sortedCategories = Object.keys(groupedProducts).sort();
+
+    const CATEGORIES = [
+        'Snacks',
+        'Beverages',
+        'Pantry & Dairy',
+        'Fruits & Vegetables',
+        'Household & Personal Care',
+        'Others'
+    ];
 
     const fetchStock = async (isBackground = false) => {
         if (!isBackground) setLoading(true);
@@ -60,19 +108,21 @@ const Dashboard = () => {
             product_price: parseFloat(formData.price),
             quantity: parseInt(formData.qty),
             image: formData.imageUrl || '/static/images/placeholder.svg',
-            barcodedata: formData.name // fallback
+            barcodedata: formData.barcode || formData.name, // fallback
+            category: formData.category
         };
 
         setProducts(prev => [newProd, ...prev]);
-        setFormData({ name: '', price: '', qty: '', imageUrl: '' });
+        setFormData({ name: '', price: '', qty: '', imageUrl: '', category: 'Snacks', barcode: '' });
 
         try {
             await axios.post('/api/product/add', {
                 name: newProd.product_name,
                 price: newProd.product_price,
-                barcode: newProd.product_name,
+                barcode: newProd.barcodedata,
                 image_url: formData.imageUrl,
-                quantity: newProd.quantity
+                quantity: newProd.quantity,
+                category: newProd.category
             });
             // Silent refresh to get real ID/data
             fetchStock(true);
@@ -126,15 +176,24 @@ const Dashboard = () => {
         }
     };
 
+    // Prepare Chart Data: Stock Distribution by Category
+    const categoryStats = Object.keys(groupedProducts).map(cat => ({
+        label: cat,
+        total: groupedProducts[cat].reduce((sum, p) => sum + (p.quantity || 0), 0)
+    }));
+
     const chartData = {
-        labels: products.map(p => p.product_name || p.name),
+        labels: categoryStats.map(d => d.label),
         datasets: [
             {
-                label: 'Available Stock',
-                data: products.map(p => p.quantity),
-                backgroundColor: 'rgba(99, 102, 241, 0.8)', // Indigo-500
-                borderRadius: 6,
-                hoverBackgroundColor: '#4f46e5'
+                label: 'Total Items in Stock',
+                data: categoryStats.map(d => d.total),
+                backgroundColor: [
+                    '#4f46e5', '#ec4899', '#f59e0b', '#10b981',
+                    '#3b82f6', '#8b5cf6', '#ef4444', '#6366f1'
+                ],
+                borderRadius: 8,
+                barThickness: 40,
             },
         ],
     };
@@ -143,31 +202,41 @@ const Dashboard = () => {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                display: false
-            },
-            title: { display: false },
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#1e293b',
+                padding: 12,
+                cornerRadius: 8,
+                titleFont: { family: "'Outfit', sans-serif", size: 14 },
+                bodyFont: { family: "'Outfit', sans-serif", size: 14 },
+                displayColors: true,
+                callbacks: {
+                    label: (context) => ` ${context.raw} Units`
+                }
+            }
         },
         scales: {
             y: {
                 beginAtZero: true,
-                grid: { color: '#f1f5f9' },
+                grid: { color: '#f1f5f9', drawBorder: false },
                 ticks: {
                     font: { family: "'Outfit', sans-serif", size: 11 },
-                    color: '#64748b'
+                    color: '#94a3b8'
                 },
                 border: { display: false }
             },
             x: {
                 grid: { display: false },
                 ticks: {
-                    font: { family: "'Outfit', sans-serif", size: 10 },
-                    color: '#64748b',
-                    maxRotation: 45,
-                    minRotation: 45
+                    font: { family: "'Outfit', sans-serif", size: 11, weight: '600' },
+                    color: '#475569'
                 },
                 border: { display: false }
             }
+        },
+        animation: {
+            duration: 1500,
+            easing: 'easeOutQuart'
         }
     };
 
@@ -177,24 +246,42 @@ const Dashboard = () => {
             name: p.product_name || p.name,
             price: p.product_price || p.price,
             barcode: p.barcodedata,
-            image: p.image
+            image: p.image,
+            category: p.category || getCategory(p) || 'Snacks'
         });
     };
 
     const handleEditSave = async (e) => {
         e.preventDefault();
+
+        // Optimistic Update: Update local state immediately
+        const updatedProduct = {
+            _id: editingProduct.id,
+            product_name: editingProduct.name,
+            product_price: parseFloat(editingProduct.price),
+            barcodedata: editingProduct.barcode,
+            image: editingProduct.image,
+            category: editingProduct.category,
+            // Preserve existing fields we aren't editing
+            quantity: products.find(p => p._id === editingProduct.id)?.quantity || 0
+        };
+
+        setProducts(prev => prev.map(p => p._id === editingProduct.id ? updatedProduct : p));
+        setEditingProduct(null); // Close modal immediately
+
         try {
             await axios.post('/api/product/edit', {
                 id: editingProduct.id,
                 name: editingProduct.name,
                 price: editingProduct.price,
                 barcode: editingProduct.barcode,
-                image: editingProduct.image
+                image: editingProduct.image,
+                category: editingProduct.category
             });
-            setEditingProduct(null);
-            fetchStock(); // Refresh data
+            // No need to fetchStock() immediately if successful, generic refresh can happen later
         } catch (err) {
             alert('Failed to update product');
+            fetchStock(true); // Revert on error
         }
     };
 
@@ -293,26 +380,51 @@ const Dashboard = () => {
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Image URL</label>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <input
-                                        type="text"
-                                        placeholder="Paste image link here..."
-                                        style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none' }}
-                                        value={formData.imageUrl}
-                                        onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={findImage}
-                                        style={{
-                                            padding: '10px 16px', borderRadius: '8px', border: '1px solid #cbd5e1',
-                                            background: '#f8fafc', cursor: 'pointer', fontSize: '1.2rem'
-                                        }}
-                                        title="Find image on Google"
+                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Barcode (Optional)</label>
+                                <input
+                                    type="text"
+                                    placeholder="Scan or enter barcode"
+                                    style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none' }}
+                                    value={formData.barcode}
+                                    onChange={e => setFormData({ ...formData, barcode: e.target.value })}
+                                />
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) 2fr', gap: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Category</label>
+                                    <select
+                                        value={formData.category}
+                                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                        style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none', background: 'white', color: '#1e293b' }}
                                     >
-                                        🔍
-                                    </button>
+                                        {CATEGORIES.map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Image URL</label>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Link..."
+                                            style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none' }}
+                                            value={formData.imageUrl}
+                                            onChange={e => setFormData({ ...formData, imageUrl: e.target.value })}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={findImage}
+                                            style={{
+                                                padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1',
+                                                background: '#f8fafc', cursor: 'pointer', fontSize: '1.2rem'
+                                            }}
+                                            title="Find image"
+                                        >
+                                            🔍
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -389,123 +501,157 @@ const Dashboard = () => {
                             padding: '20px',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                             border: '1px solid #e2e8f0',
-                            height: '250px',
+                            height: '340px',
                             display: 'flex',
                             flexDirection: 'column'
                         }}>
                             <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stock Overview</h4>
                             <div style={{ flex: 1, position: 'relative' }}>
-                                <Bar data={chartData} options={chartOptions} />
+                                <Bar key={JSON.stringify(chartOptions)} data={chartData} options={chartOptions} />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Inventory Grid */}
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    Current Inventory <span style={{ fontSize: '1rem', background: '#f1f5f9', padding: '4px 12px', borderRadius: '20px', color: '#64748b' }}>{products.length} Items</span>
-                </h3>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
-                    {products.map((p, i) => (
-                        <div key={i} className="product-card" style={{
-                            background: 'white',
-                            borderRadius: '16px',
-                            padding: '16px',
-                            border: '1px solid #e2e8f0',
-                            transition: 'all 0.3s ease',
-                            position: 'relative',
-                            overflow: 'hidden'
-                        }}>
-                            {/* Stock Indicator Dot */}
+                {/* Inventory Grouped by Category */}
+                {/* Inventory Grouped by Category */}
+                {sortedCategories.map((category) => {
+                    const categoryProducts = groupedProducts[category];
+                    return (
+                        <div key={category} style={{ marginBottom: '40px' }}>
                             <div style={{
-                                position: 'absolute', top: '16px', right: '16px',
-                                width: '10px', height: '10px', borderRadius: '50%',
-                                background: p.quantity > 10 ? '#22c55e' : p.quantity > 0 ? '#f59e0b' : '#ef4444',
-                                boxShadow: '0 0 0 4px rgba(255,255,255,0.8)',
-                                zIndex: 10
-                            }} title={p.quantity > 0 ? 'In Stock' : 'Out of Stock'}></div>
-
-                            {/* Edit Button */}
-                            <button
-                                onClick={() => handleEditClick(p)}
-                                style={{
-                                    position: 'absolute', top: '12px', left: '12px',
-                                    width: '32px', height: '32px', borderRadius: '8px',
-                                    background: 'white', border: '1px solid #e2e8f0',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                                    zIndex: 10, color: '#475569'
-                                }}
-                                title="Edit Details"
-                            >
-                                ✏️
-                            </button>
-
-                            <div style={{
-                                height: '160px', borderRadius: '12px', background: '#f8fafc',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                marginBottom: '16px', overflow: 'hidden'
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                marginBottom: '24px',
+                                paddingBottom: '12px',
+                                borderBottom: '2px solid #f1f5f9'
                             }}>
-                                <img
-                                    src={p.image || '/static/images/placeholder.svg'}
-                                    alt={p.product_name}
-                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/400x400/f1f5f9/94a3b8.png?text=${encodeURIComponent(p.product_name)}` }}
-                                    style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }}
-                                />
+                                <h3 style={{
+                                    fontSize: '1.5rem',
+                                    fontWeight: '700',
+                                    color: '#1e293b',
+                                    margin: 0
+                                }}>
+                                    {category}
+                                </h3>
+                                <span style={{
+                                    background: 'var(--primary, #4f46e5)', // Fallback to indigo if var missing
+                                    color: 'white',
+                                    padding: '4px 10px',
+                                    borderRadius: '20px',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '700',
+                                    minWidth: '24px',
+                                    textAlign: 'center'
+                                }}>
+                                    {categoryProducts.length}
+                                </span>
                             </div>
 
-                            <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {p.product_name || p.name}
-                            </h4>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Barcode: <span style={{ fontFamily: 'monospace' }}>{p.barcodedata?.slice(-6) || 'N/A'}</span></span>
-                                <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#4f46e5' }}>₹{p.product_price || p.price}</span>
-                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
+                                {categoryProducts.map((p, i) => (
+                                    <div key={i} className="product-card" style={{
+                                        background: 'white',
+                                        borderRadius: '16px',
+                                        padding: '16px',
+                                        border: '1px solid #e2e8f0',
+                                        transition: 'all 0.3s ease',
+                                        position: 'relative',
+                                        overflow: 'hidden'
+                                    }}>
+                                        {/* Stock Indicator Dot */}
+                                        <div style={{
+                                            position: 'absolute', top: '16px', right: '16px',
+                                            width: '10px', height: '10px', borderRadius: '50%',
+                                            background: p.quantity > 10 ? '#22c55e' : p.quantity > 0 ? '#f59e0b' : '#ef4444',
+                                            boxShadow: '0 0 0 4px rgba(255,255,255,0.8)',
+                                            zIndex: 10
+                                        }} title={p.quantity > 0 ? 'In Stock' : 'Out of Stock'}></div>
 
-                            <div style={{ background: '#f1f5f9', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Stock Level</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', padding: '2px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                                    <button
-                                        onClick={() => updateStock(p, -1)}
-                                        disabled={p.quantity <= 0}
-                                        style={{
-                                            width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                                        {/* Edit Button */}
+                                        <button
+                                            onClick={() => handleEditClick(p)}
+                                            style={{
+                                                position: 'absolute', top: '12px', left: '12px',
+                                                width: '32px', height: '32px', borderRadius: '8px',
+                                                background: 'white', border: '1px solid #e2e8f0',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                                zIndex: 10, color: '#475569'
+                                            }}
+                                            title="Edit Details"
+                                        >
+                                            ✏️
+                                        </button>
+
+                                        <div style={{
+                                            height: '160px', borderRadius: '12px', background: '#f8fafc',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            cursor: p.quantity <= 0 ? 'not-allowed' : 'pointer',
-                                            background: p.quantity <= 0 ? '#f1f5f9' : '#fee2e2',
-                                            color: p.quantity <= 0 ? '#cbd5e1' : '#dc2626',
-                                            fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1
-                                        }}
-                                        title="Decrease Stock"
-                                    >−</button>
-                                    <span style={{ fontSize: '1rem', fontWeight: '700', color: '#1e293b', minWidth: '30px', textAlign: 'center' }}>{p.quantity}</span>
-                                    <button
-                                        onClick={() => updateStock(p, 1)}
-                                        style={{
-                                            width: '28px', height: '28px', borderRadius: '6px', border: 'none',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            cursor: 'pointer',
-                                            background: '#e0e7ff', color: '#4f46e5',
-                                            fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1
-                                        }}
-                                        title="Increase Stock"
-                                    >+</button>
-                                </div>
-                            </div>
+                                            marginBottom: '16px', overflow: 'hidden'
+                                        }}>
+                                            <img
+                                                src={p.image || '/static/images/placeholder.svg'}
+                                                alt={p.product_name}
+                                                onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/400x400/f1f5f9/94a3b8.png?text=${encodeURIComponent(p.product_name)}` }}
+                                                style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }}
+                                            />
+                                        </div>
 
-                            {/* Visual Bar for Stock */}
-                            <div style={{ marginTop: '8px', height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
-                                <div style={{
-                                    height: '100%', width: `${Math.min(p.quantity, 100)}%`,
-                                    background: p.quantity < 5 ? '#ef4444' : '#4f46e5',
-                                    borderRadius: '2px',
-                                    transition: 'width 0.5s ease'
-                                }}></div>
+                                        <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {p.product_name || p.name}
+                                        </h4>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                            <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Barcode: <span style={{ fontFamily: 'monospace' }}>{p.barcodedata?.slice(-6) || 'N/A'}</span></span>
+                                            <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#4f46e5' }}>₹{p.product_price || p.price}</span>
+                                        </div>
+
+                                        <div style={{ background: '#f1f5f9', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Stock Level</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', padding: '2px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                                                <button
+                                                    onClick={() => updateStock(p, -1)}
+                                                    disabled={p.quantity <= 0}
+                                                    style={{
+                                                        width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: p.quantity <= 0 ? 'not-allowed' : 'pointer',
+                                                        background: p.quantity <= 0 ? '#f1f5f9' : '#fee2e2',
+                                                        color: p.quantity <= 0 ? '#cbd5e1' : '#dc2626',
+                                                        fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1
+                                                    }}
+                                                    title="Decrease Stock"
+                                                >−</button>
+                                                <span style={{ fontSize: '1rem', fontWeight: '700', color: '#1e293b', minWidth: '30px', textAlign: 'center' }}>{p.quantity}</span>
+                                                <button
+                                                    onClick={() => updateStock(p, 1)}
+                                                    style={{
+                                                        width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: 'pointer',
+                                                        background: '#e0e7ff', color: '#4f46e5',
+                                                        fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1
+                                                    }}
+                                                    title="Increase Stock"
+                                                >+</button>
+                                            </div>
+                                        </div>
+
+                                        {/* Visual Bar for Stock */}
+                                        <div style={{ marginTop: '8px', height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                                            <div style={{
+                                                height: '100%', width: `${Math.min(p.quantity, 100)}%`,
+                                                background: p.quantity < 5 ? '#ef4444' : '#4f46e5',
+                                                borderRadius: '2px',
+                                                transition: 'width 0.5s ease'
+                                            }}></div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    ))}
-                </div>
+                    );
+                })}
 
                 {products.length === 0 && !loading && (
                     <div style={{ textAlign: 'center', padding: '60px', opacity: 0.6 }}>
@@ -546,6 +692,18 @@ const Dashboard = () => {
                                     onChange={e => setEditingProduct({ ...editingProduct, price: e.target.value })}
                                     style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                                 />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Category</label>
+                                <select
+                                    value={editingProduct.category}
+                                    onChange={e => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}
+                                >
+                                    {CATEGORIES.map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Image URL</label>

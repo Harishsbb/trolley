@@ -10,8 +10,11 @@ const Search = () => {
     const [loading, setLoading] = useState(true);
 
     // Helper: Define Categories Heuristic (Moved up for reuse)
-    const getCategory = (name) => {
-        const n = name.toLowerCase();
+    const getCategory = (product) => {
+        // Respect stored category if it exists
+        if (product.category && product.category !== 'Uncategorized') return product.category;
+
+        const n = (product.name || '').toLowerCase();
 
         // Snacks & Breakfast
         if (n.match(/biscuit|cookie|rusk|wafer|cracker|good day|tiger|parle|britannia|sunfeast|treat|marie|monaco|oreo|bourbon/)) return 'Snacks';
@@ -24,7 +27,7 @@ const Search = () => {
         if (n.match(/\b(water|coffee|tea|milk|shake|smoothie|brew|red bull|energy|squash|syrup|bot|bottle)\b/)) return 'Beverages';
 
         // Household
-        if (n.match(/soap|shampoo|conditioner|wash|cleaner|detergent|laundry|rin|surf|ariel|tide|vim|dettol|lysol|harpic/)) return 'Household & Personal Care';
+        if (n.match(/soap|shampoo|conditioner|wash|cleaner|detergent|laundry|rin|surf|ariel|tide|vim|dettol|lysol|harpic|vanish/)) return 'Household & Personal Care';
         if (n.match(/tooth|paste|brush|colgate|pepsodent|sensodyne|close up|himalaya|mouthwash|shave|razor|blade|tissue|napkin|diaper/)) return 'Household & Personal Care';
         if (n.match(/perfume|deo|spray|scent|cream|lotion|moisturizer|powder|cosmetic|face|body/)) return 'Household & Personal Care';
 
@@ -113,7 +116,7 @@ const Search = () => {
             let score = 0;
 
             if (name === lowerQuery) score = 100;
-            else if (getCategory(product.name).toLowerCase().includes(lowerQuery)) score = 85;
+            else if (getCategory(product).toLowerCase().includes(lowerQuery)) score = 85;
             else if (name.startsWith(lowerQuery)) score = 90;
             else if (name.includes(lowerQuery)) score = 75;
             else {
@@ -185,7 +188,7 @@ const Search = () => {
                             (() => {
                                 // 2. Group Products
                                 const grouped = displayedProducts.reduce((acc, product) => {
-                                    const cat = getCategory(product.name);
+                                    const cat = getCategory(product);
                                     if (!acc[cat]) acc[cat] = [];
                                     acc[cat].push(product);
                                     return acc;

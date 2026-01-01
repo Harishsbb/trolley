@@ -80,19 +80,18 @@ const ProductDetails = () => {
                     <div style={{ flex: '2 1 600px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <div className="details-shelf-grid" style={{
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(5, 1fr)',
-                            gridTemplateRows: 'repeat(4, 1fr)',
-                            gap: '15px',
+                            gridTemplateColumns: 'repeat(7, 1fr)',
+                            gridTemplateRows: 'repeat(5, 1fr)',
+                            gap: '10px',
                             width: '100%',
                             height: '100%',
                             maxHeight: '100%',
-                            aspectRatio: '5/4' // Keeps shape
                         }}>
-                            {/* Create a 5x4 grid (20 slots) */}
-                            {[...Array(20)].map((_, i) => {
+                            {/* Create a 7x5 grid (35 slots) */}
+                            {[...Array(35)].map((_, i) => {
                                 // Deterministic slot position based on product ID hash
                                 const productHash = String(product.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                                const activeSlot = productHash % 20;
+                                const activeSlot = productHash % 35;
                                 const isActive = (i === activeSlot);
 
                                 return (
@@ -138,12 +137,12 @@ const ProductDetails = () => {
                     </div>
 
                     {/* Right Side: Product Info */}
-                    <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', paddingLeft: '20px', justifyContent: 'center', overflowY: 'auto' }}>
+                    <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', paddingLeft: '20px', overflowY: 'auto' }}>
 
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                            <div style={{ marginBottom: 'auto' }}>
-                                <h1 style={{ color: '#2c3e50', fontSize: '3rem', margin: '0 0 10px 0', lineHeight: 1.2 }}>{product.name}</h1>
-                                <p style={{ fontSize: '2.5rem', color: '#e74c3c', fontWeight: 'bold', margin: '0 0 20px 0' }}>₹{product.price}</p>
+                        <div style={{ margin: 'auto 0', width: '100%' }}>
+                            <div style={{ padding: '10px 0' }}>
+                                <h1 style={{ color: '#2c3e50', fontSize: '2.5rem', margin: '0 0 10px 0', lineHeight: 1.3, padding: '4px 0', position: 'relative', zIndex: 5, wordWrap: 'break-word' }}>{product.name}</h1>
+                                <p style={{ fontSize: '2.2rem', color: '#e74c3c', fontWeight: 'bold', margin: '0 0 20px 0' }}>₹{product.price}</p>
                             </div>
 
                             {/* Location Details Card */}
@@ -161,11 +160,11 @@ const ProductDetails = () => {
                                 {(() => {
                                     // Calculate deterministic location
                                     const hash = String(product.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-                                    const slotIndex = hash % 20;
+                                    const slotIndex = hash % 35;
 
                                     const rackNum = (hash % 4) + 1; // Random Rack 1-4
-                                    const rowNum = Math.floor(slotIndex / 5) + 1; // Row 1-4
-                                    const colNum = (slotIndex % 5) + 1; // Col 1-5
+                                    const rowNum = Math.floor(slotIndex / 7) + 1; // Row 1-5
+                                    const colNum = (slotIndex % 7) + 1; // Col 1-7
 
                                     return (
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
