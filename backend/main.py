@@ -13,6 +13,10 @@ import random
 # --- Global State & Setup ---
 app = Flask(__name__)
 app.secret_key = 'your_super_secure_secret_key' # Use a strong key sessions
+
+# Updated Session Config for Cross-Site (Vercel Frontend -> Vercel Backend)
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True # Required for SameSite=None
 # CORS Setup: Must specify exact origins for credentials (cookies) to work
 CORS(app, supports_credentials=True, origins=["http://localhost:5173", "https://snapshop-web.vercel.app", "https://trolley-frontend-lemon.vercel.app", "https://trolley-frontend.vercel.app"])
 
