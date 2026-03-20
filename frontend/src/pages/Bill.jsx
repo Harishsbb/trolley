@@ -181,7 +181,7 @@ const Bill = () => {
         >
           <h3>Scan to Pay</h3>
           <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`upi://pay?pa=jothirharishh@oksbi&pn=SnapShop&am=${Number(totalPrice).toFixed(2)}&cu=INR`)}`}
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`upi://pay?pa=bavaharishkumar-9@okaxis&pn=SnapShop&am=${Number(totalPrice).toFixed(2)}&cu=INR`)}`}
             alt="Payment QR Code"
             style={{
               padding: "10px",
