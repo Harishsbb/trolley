@@ -9,10 +9,14 @@ import re
 from datetime import datetime
 import os
 import random
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 # --- Global State & Setup ---
 app = Flask(__name__)
-app.secret_key = 'your_super_secure_secret_key' # Use a strong key sessions
+app.secret_key = os.environ.get('SECRET_KEY') or 'your_super_secure_secret_key' # Use a strong key sessions
 
 # Updated Session Config for Cross-Site (Vercel Frontend -> Vercel Backend)
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
@@ -22,7 +26,7 @@ CORS(app, supports_credentials=True, origins=["http://localhost:5173", "https://
 
 # MongoDB configuration
 MONGO_URI = os.environ.get('MONGO_URI') or 'mongodb+srv://admin:harish123@cluster0.cfoj6si.mongodb.net/barcodedb?retryWrites=true&w=majority&appName=Cluster0'
-DB_NAME = 'barcodedb'
+DB_NAME = os.environ.get('DB_NAME') or 'barcodedb'
 
 # --- Utility Function for Database Connection ---
 def get_db():
@@ -458,4 +462,6 @@ if __name__ == '__main__':
     # usage_reloader=False prevents the "WinError 10038" socket error on Windows
     # by stopping the double-process spawner. You will need to manually restart
     # the server if you make code changes.
-    app.run(debug=True, use_reloader=False, port=5003)
+    port = int(os.environ.get('PORT', 5003))
+    debug = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
+    app.run(debug=debug, use_reloader=False, port=port)
