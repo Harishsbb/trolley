@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import '../index.css';
 import successSound from '../assets/sounds/success.mp3';
@@ -14,6 +15,7 @@ const Scanner = () => {
     const [recommendations, setRecommendations] = useState([]);
     const [lastScanned, setLastScanned] = useState(null);
     const [toast, setToast] = useState({ message: '', type: '', visible: false });
+    const [dynamicOffers, setDynamicOffers] = useState({});
 
     // Use a counter for pending actions to handle multiple rapid scans correctly
     const [pendingScans, setPendingScans] = useState(0);
@@ -30,7 +32,7 @@ const Scanner = () => {
 
     const fetchCart = async () => {
         try {
-            const res = await axios.get('/get-scanned-items');
+            const res = await axios.get('/api/get-scanned-items');
             setScannedItems(res.data.products || []);
             setTotalPrice(res.data.total_prize || 0);
         } catch (err) {
@@ -40,7 +42,7 @@ const Scanner = () => {
 
     const fetchRecommendations = async () => {
         try {
-            const res = await axios.get('/recommended');
+            const res = await axios.get('/api/recommended');
             setRecommendations(res.data);
         } catch (err) {
             console.error(err);
@@ -71,6 +73,20 @@ const Scanner = () => {
             })
             .catch(err => console.log("Background product sync failed", err));
 
+        // Fetch dynamic offers for optimistic updates
+        axios.get('/api/offers')
+            .then(res => {
+                const offersMap = {};
+                res.data.forEach(o => {
+                    offersMap[o.product_name.toLowerCase()] = {
+                        type: o.offer_type,
+                        value: o.offer_value
+                    };
+                });
+                setDynamicOffers(offersMap);
+            })
+            .catch(err => console.error("Failed to fetch offers for scanner", err));
+
         fetchCart();
         fetchRecommendations();
     }, []);
@@ -95,6 +111,28 @@ const Scanner = () => {
             const chime = new Audio(successSound);
             chime.play().catch(e => { });
 
+            // Apply Offer Logic Optimistically - Dynamically from Backend
+            const OFFERS = dynamicOffers;
+
+            const originalPrice = parseFloat(localProduct.product_price);
+            let finalPrice = originalPrice;
+            let onOffer = false;
+
+            // Normalize: lowercase and remove extra spaces
+            const p_name_norm = localProduct.product_name.toLowerCase().split(/\s+/).join(' ');
+
+            for (const [key, offer] of Object.entries(OFFERS)) {
+                if (p_name_norm.includes(key)) {
+                    if (offer.type === "pct") {
+                        finalPrice = originalPrice * (1 - offer.value / 100);
+                    } else if (offer.type === "flat") {
+                        finalPrice = Math.max(0, originalPrice - offer.value);
+                    }
+                    onOffer = true;
+                    break;
+                }
+            }
+
             // Optimistic Update
             setScannedItems(prev => {
                 const newItems = [...prev];
@@ -108,27 +146,32 @@ const Scanner = () => {
                 } else {
                     newItems.push({
                         name: localProduct.product_name,
-                        price: parseFloat(localProduct.product_price),
+                        price: finalPrice,
+                        original_price: originalPrice,
                         quantity: 1,
-                        image: localProduct.image || '/static/images/placeholder.svg'
+                        image: localProduct.image || '/static/images/placeholder.svg',
+                        on_offer: onOffer
                     });
                 }
                 return newItems;
             });
 
-            setTotalPrice(prev => prev + parseFloat(localProduct.product_price));
+            setTotalPrice(prev => prev + finalPrice);
             setLastScanned(localProduct.product_name);
             showToast(`Added: ${localProduct.product_name}`, 'success');
 
-            // Sync with backend seamlessly (no spinner needed)
+            // Sync with backend seamlessly
             try {
-                await axios.post('/scan-item', { barcode: decodedText });
+                const res = await axios.post('/api/scan-item', { barcode: decodedText });
+                if (res.data.cart) {
+                    setScannedItems(res.data.cart.products || []);
+                    setTotalPrice(res.data.cart.total_prize || 0);
+                }
             } catch (err) {
                 console.error("Sync error", err);
-                // If sync fails, we might want to revert, but for now we assume it works
             }
 
-            return; // Skip the slow path
+            return;
         }
 
         // Fallback for unknown items: Normal flow with spinner
@@ -141,7 +184,7 @@ const Scanner = () => {
         setPendingScans(prev => prev + 1);
 
         try {
-            const res = await axios.post('/scan-item', { barcode: decodedText });
+            const res = await axios.post('/api/scan-item', { barcode: decodedText });
 
             if (res.data.status === 'success') {
                 // Success Chime (if not played already)
@@ -187,6 +230,7 @@ const Scanner = () => {
         let isMounted = true;
 
         if (scanning) {
+            window.dispatchEvent(new CustomEvent('scanning-status', { detail: true }));
             const startScanner = async () => {
                 try {
                     // Safety check: make sure any previous instance is dead
@@ -200,7 +244,14 @@ const Scanner = () => {
                     const config = {
                         fps: 20,
                         qrbox: { width: 250, height: 250 },
-                        formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.QR_CODE]
+                        formatsToSupport: [
+                            Html5QrcodeSupportedFormats.EAN_13, 
+                            Html5QrcodeSupportedFormats.EAN_8, 
+                            Html5QrcodeSupportedFormats.UPC_A, 
+                            Html5QrcodeSupportedFormats.UPC_E, 
+                            Html5QrcodeSupportedFormats.CODE_128,
+                            Html5QrcodeSupportedFormats.QR_CODE
+                        ]
                     };
 
                     await html5QrCode.start(
@@ -228,6 +279,7 @@ const Scanner = () => {
         // Cleanup function for unmount or dependency change
         return () => {
             isMounted = false;
+            window.dispatchEvent(new CustomEvent('scanning-status', { detail: false }));
             // logic moved to stopScanner, but we can't await in cleanup.
             // Best effort stop if component unmounts while scanning.
             if (scannerRef.current) {
@@ -263,7 +315,7 @@ const Scanner = () => {
         showToast(`Removed: ${productName}`, 'remove');
 
         try {
-            const res = await axios.post('/remove-item', { product_name: productName });
+            const res = await axios.post('/api/remove-item', { product_name: productName });
 
             // Sync with backend truth
             if (res.data.cart) {
@@ -278,6 +330,27 @@ const Scanner = () => {
         }
     };
 
+
+    const handleSaveHistory = async () => {
+        try {
+            const res = await axios.post('/api/save-history');
+            if (res.data.status === 'success') {
+                showToast(res.data.message, 'success');
+                setScannedItems([]);
+                setTotalPrice(0);
+                setLastScanned(null);
+                setRecommendations([]);
+                // Optional: Play a success sound
+                const success = new Audio(successSound);
+                success.play().catch(e => { });
+            } else {
+                showToast(res.data.message, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to save history", 'error');
+        }
+    };
 
     const handleGenerateBill = () => {
         // Save current cart state to ensure Bill matches UI exactly
@@ -317,7 +390,7 @@ const Scanner = () => {
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-                <h1 style={{ margin: 0 }}>Smart Scanner</h1>
+                <h1 style={{ margin: 0 }}>Self Shopping Smart Trolley</h1>
                 {lastScanned && (
                     <div className="fade-in" style={{ background: '#dcfce7', padding: '8px 16px', borderRadius: '20px', color: '#166534', fontWeight: '600' }}>
                         Last Scanned: {lastScanned}
@@ -405,10 +478,24 @@ const Scanner = () => {
                                                     onError={(e) => { e.target.onerror = null; e.target.src = '/static/images/placeholder.svg'; }}
                                                 />
                                                 <div style={{ fontWeight: 'bold' }}>{item.name}</div>
+                                                {item.on_offer && (
+                                                    <div style={{ fontSize: '0.7rem', color: '#22c55e', fontWeight: '800', background: '#f0fdf4', padding: '2px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '4px' }}>
+                                                        ✨ OFFER APPLIED
+                                                    </div>
+                                                )}
                                             </div>
                                         </td>
                                         <td style={{ padding: '10px', textAlign: 'center' }}>{item.quantity}</td>
-                                        <td style={{ padding: '10px', textAlign: 'right' }}>₹{(item.price * item.quantity).toFixed(2)}</td>
+                                        <td style={{ padding: '10px', textAlign: 'right' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                <div style={{ fontWeight: 'bold' }}>₹{(item.price * item.quantity).toFixed(2)}</div>
+                                                {item.on_offer && (
+                                                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', textDecoration: 'line-through' }}>
+                                                        ₹{(item.original_price * item.quantity).toFixed(2)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td style={{ padding: '10px', textAlign: 'center' }}>
                                             <button
                                                 onClick={() => handleRemoveItem(item.name)}
@@ -454,6 +541,14 @@ const Scanner = () => {
                         <button className="btn btn-primary" style={{ flex: 1, backgroundColor: '#27ae60' }} onClick={handleGenerateBill} disabled={scannedItems.length === 0}>
                             Generate Bill
                         </button>
+                        <button 
+                            className="btn btn-primary" 
+                            style={{ flex: 1, backgroundColor: '#3b82f6' }} 
+                            onClick={handleSaveHistory} 
+                            disabled={scannedItems.length === 0}
+                        >
+                            Save History
+                        </button>
                     </div>
                 </div>
             </div>
@@ -462,11 +557,50 @@ const Scanner = () => {
                 <h3>You might also like</h3>
                 <div style={{ display: 'flex', gap: '15px', overflowX: 'auto', paddingBottom: '10px' }}>
                     {recommendations.map((rec, i) => (
-                        <div key={i} className="product-card" style={{ minWidth: '200px', padding: '10px' }}>
-                            <img src={rec.image} style={{ width: '100%', height: '120px', objectFit: 'contain' }} alt={rec.name} />
-                            <h5 style={{ margin: '10px 0 5px', fontSize: '14px' }}>{rec.name}</h5>
-                            <div style={{ fontWeight: 'bold', color: '#e74c3c' }}>₹{rec.price}</div>
-                        </div>
+                        <Link 
+                            to={`/product/${rec.id}`} 
+                            key={i} 
+                            className="product-card" 
+                            style={{ 
+                                minWidth: '220px', 
+                                padding: '16px', 
+                                textDecoration: 'none', 
+                                color: 'inherit',
+                                position: 'relative',
+                                background: 'white',
+                                borderRadius: '16px',
+                                border: '1px solid #f1f5f9',
+                                transition: 'transform 0.2s',
+                                cursor: 'pointer'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+                            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                        >
+                            {rec.reason && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '10px',
+                                    right: '10px',
+                                    background: rec.reason === 'Top Choice' ? '#4f46e5' : '#10b981',
+                                    color: 'white',
+                                    fontSize: '0.65rem',
+                                    padding: '4px 8px',
+                                    borderRadius: '50px',
+                                    fontWeight: '800',
+                                    zIndex: 2,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.02em',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                }}>
+                                    {rec.reason}
+                                </div>
+                            )}
+                            <div style={{ width: '100%', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+                                <img src={rec.image} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} alt={rec.name} />
+                            </div>
+                            <h5 style={{ margin: '0 0 8px', fontSize: '15px', fontWeight: '700', color: '#1e293b', lineHeight: '1.4' }}>{rec.name}</h5>
+                            <div style={{ fontWeight: '800', color: '#ef4444', fontSize: '1.1rem' }}>₹{rec.price}</div>
+                        </Link>
                     ))}
                 </div>
             </div>

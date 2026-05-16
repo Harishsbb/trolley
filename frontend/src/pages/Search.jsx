@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import '../index.css';
 
 const Search = () => {
-    const [query, setQuery] = useState('');
+    const location = useLocation();
+    const [query, setQuery] = useState(location.state?.query || '');
     const [allProducts, setAllProducts] = useState([]);
     const [displayedProducts, setDisplayedProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // Sync query when navigation state changes (e.g., clicking Mascot offer while on Search page)
+    useEffect(() => {
+        if (location.state?.query) {
+            setQuery(location.state.query);
+        }
+    }, [location.state]);
 
     // Helper: Define Categories Heuristic (Moved up for reuse)
     const getCategory = (product) => {
@@ -52,7 +60,7 @@ const Search = () => {
 
             // 2. Fetch fresh data in background (or foreground if no cache)
             try {
-                const res = await axios.get('/search?query=');
+                const res = await axios.get('/api/search?query=');
                 setAllProducts(res.data);
                 if (!query) {
                     setDisplayedProducts(res.data);
@@ -233,7 +241,12 @@ const Search = () => {
 
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '32px' }}>
                                                 {products.map((product) => (
-                                                    <div key={product.id} className="product-card">
+                                                    <Link 
+                                                        to={`/product/${product.id}`} 
+                                                        key={product.id} 
+                                                        className="product-card"
+                                                        style={{ textDecoration: 'none' }}
+                                                    >
                                                         <div className="product-image-container">
                                                             <img
                                                                 src={product.image}
@@ -250,11 +263,11 @@ const Search = () => {
                                                             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.4' }}>
                                                                 In Stock • Fresh
                                                             </p>
-                                                            <Link to={`/product/${product.id}`} className="btn btn-primary" style={{ marginTop: 'auto', width: '100%' }}>
+                                                            <div className="btn btn-primary" style={{ marginTop: 'auto', width: '100%' }}>
                                                                 View Details
-                                                            </Link>
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    </Link>
                                                 ))}
                                             </div>
                                         </div>

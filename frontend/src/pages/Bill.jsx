@@ -81,7 +81,7 @@ const Bill = () => {
           Invoice
         </div>
 
-        <h1 style={{ textAlign: "center", color: "#333" }}>Your Bill</h1>
+        <h1 style={{ textAlign: "center", color: "#333", fontSize: '1.5rem', fontWeight: '800' }}>Self Shopping Smart Trolley Invoice</h1>
 
         <div style={{ overflowX: "auto" }}>
           <table
@@ -149,15 +149,27 @@ const Bill = () => {
                   </td>
                   <td style={{ border: "1px solid #000", padding: "10px" }}>
                     {product.name}
+                    {product.on_offer && (
+                      <div style={{ fontSize: '0.7rem', color: '#27ae60', marginTop: '4px', fontWeight: 'bold' }}>
+                        (Mascot Offer Applied)
+                      </div>
+                    )}
                   </td>
                   <td style={{ border: "1px solid #000", padding: "10px" }}>
-                    {product.price}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                       <span>₹{Number(product.price).toFixed(2)}</span>
+                       {product.on_offer && (
+                         <span style={{ fontSize: '0.75rem', color: '#999', textDecoration: 'line-through' }}>
+                           ₹{Number(product.original_price).toFixed(2)}
+                         </span>
+                       )}
+                    </div>
                   </td>
                   <td style={{ border: "1px solid #000", padding: "10px" }}>
                     {product.quantity}
                   </td>
-                  <td style={{ border: "1px solid #000", padding: "10px" }}>
-                    {product.price * product.quantity}
+                  <td style={{ border: "1px solid #000", padding: "10px", fontWeight: 'bold' }}>
+                    ₹{Number(product.price * product.quantity).toFixed(2)}
                   </td>
                 </tr>
               ))}

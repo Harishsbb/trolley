@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
+import Mascot from './components/Mascot';
 
 // Lazy Load Pages for Performance
 const Login = lazy(() => import('./pages/Login'));
@@ -8,6 +9,7 @@ const Register = lazy(() => import('./pages/Register'));
 const Home = lazy(() => import('./pages/Home'));
 const Scanner = lazy(() => import('./pages/Scanner'));
 const Search = lazy(() => import('./pages/Search'));
+const History = lazy(() => import('./pages/History'));
 const ProductDetails = lazy(() => import('./pages/ProductDetails'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Bill = lazy(() => import('./pages/Bill'));
@@ -29,6 +31,7 @@ const PageLoader = () => (
 function App() {
   return (
     <Router>
+      <Mascot />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -57,6 +60,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Search />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <History />
               </ProtectedRoute>
             }
           />

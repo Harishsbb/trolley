@@ -4,43 +4,37 @@ import axios from 'axios';
 import '../index.css';
 
 const Register = () => {
-    const [formData, setFormData] = useState({
-        username: '',
-        email: '',
-        password: ''
-    });
-    const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const navigate = useNavigate();
-
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(''); // Clear previous errors
+        setError('');
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
+
         try {
-            const data = new FormData();
-            data.append('username', formData.username);
-            data.append('email', formData.email);
-            data.append('password', formData.password);
+            const res = await axios.post('/api/register', {
+                username,
+                password
+            });
 
-            const response = await axios.post('/register', data);
-
-            if (response.data.status === 'success') {
+            if (res.data.status === 'success') {
                 navigate('/login');
             } else {
-                // Should not usually reach here for errors if backend returns non-200
-                navigate('/login');
+                setError(res.data.message || 'Registration failed');
             }
         } catch (err) {
-            console.error(err);
             if (err.response && err.response.data && err.response.data.message) {
-                // Display the specific error from backend (e.g. "User with this username already exists")
                 setError(err.response.data.message);
             } else {
-                setError('Registration failed. Please check your connection.');
+                setError('Registration failed. Please try again.');
             }
         }
     };
@@ -49,211 +43,175 @@ const Register = () => {
         <div style={{
             minHeight: '100vh',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-            background: '#f0f4ff', // Light lavender from layout
+            backgroundColor: '#f8fafc',
             fontFamily: "'Outfit', sans-serif"
         }}>
-            <div className="card fade-in" style={{
-                width: '100%',
-                maxWidth: '420px',
-                background: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-                padding: '40px 30px',
-                textAlign: 'center'
+            {/* Left: Decorative Hero Image */}
+            <div className="login-hero" style={{
+                flex: '1.2',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                padding: '60px',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundImage: 'url("/images/auth-bg.png")',
+                position: 'relative',
+                color: 'white',
             }}>
-                {/* Custom Icon: User Portrait with Gradient Background */}
-                <div style={{ marginBottom: '24px', display: 'inline-block' }}>
-                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="64" height="64" rx="12" fill="url(#userGradient)" />
-                        <circle cx="32" cy="26" r="8" fill="white" />
-                        <path d="M16 50C16 42 22 38 32 38C42 38 48 42 48 50" stroke="white" strokeWidth="4" strokeLinecap="round" />
-                        <defs>
-                            <linearGradient id="userGradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-                                <stop stopColor="#ec4899" />
-                                <stop offset="1" stopColor="#a855f7" />
-                            </linearGradient>
-                        </defs>
-                    </svg>
+                <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(rgba(236, 72, 153, 0.4), rgba(236, 72, 153, 0.8))', // Rose/Secondary gradient for Register
+                    zIndex: 1
+                }}></div>
+                <div style={{ position: 'relative', zIndex: 2, maxWidth: '500px' }}>
+                    <h2 style={{ fontSize: '3.5rem', fontWeight: '800', lineHeight: '1', marginBottom: '24px' }}>Join the Network</h2>
+                    <p style={{ fontSize: '1.25rem', opacity: '0.9', fontWeight: '400' }}>Become part of the world's most advanced self-shopping ecosystem. Secure, autonomous, and elite.</p>
                 </div>
+            </div>
 
-                <h1 style={{
-                    fontSize: '1.75rem',
-                    fontWeight: '700',
-                    color: '#1e293b',
-                    marginBottom: '8px'
-                }}>Create Account</h1>
-
-                <p style={{
-                    color: '#64748b',
-                    fontSize: '0.95rem',
-                    marginBottom: '32px'
-                }}>Get full access to your shopping history</p>
-
-                {error && (
-                    <div style={{
-                        background: '#fee2e2',
-                        border: '1px solid #fecaca',
-                        color: '#b91c1c',
-                        padding: '10px',
-                        borderRadius: '6px',
-                        marginBottom: '20px',
-                        fontSize: '0.875rem'
-                    }}>
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{
-                            display: 'block',
-                            marginBottom: '6px',
-                            fontWeight: '600',
-                            color: '#334155',
-                            fontSize: '0.9rem'
-                        }}>Username</label>
-                        <input
-                            type="text"
-                            name="username"
-                            required
-                            value={formData.username}
-                            onChange={handleChange}
-                            style={{
-                                width: '100%',
-                                padding: '12px 16px',
-                                borderRadius: '8px',
-                                border: '1px solid #cbd5e1',
-                                fontSize: '1rem',
-                                outline: 'none',
-                                transition: 'border-color 0.2s',
-                                backgroundColor: 'white'
-                            }}
-                            placeholder="Choose a username"
-                            onFocus={(e) => e.target.style.borderColor = '#6366f1'}
-                            onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
-                        />
+            {/* Right: Registration Form */}
+            <div style={{
+                flex: '1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '40px'
+            }}>
+                <div className="card fade-in" style={{
+                    width: '100%',
+                    maxWidth: '430px',
+                    padding: '50px',
+                    backgroundColor: 'white',
+                    borderRadius: '24px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
+                }}>
+                    <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                         <div style={{
+                            width: '56px', height: '56px', margin: '0 auto 20px', borderRadius: '16px',
+                            background: 'var(--secondary)', color: 'white', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', fontSize: '1.75rem', fontWeight: '800'
+                         }}>R</div>
+                         <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#111827', marginBottom: '10px', letterSpacing: '-0.02em' }}>Initialize Account</h1>
+                         <p style={{ color: '#6b7280', fontSize: '1rem' }}>Create your prestige credentials</p>
                     </div>
 
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{
-                            display: 'block',
-                            marginBottom: '6px',
-                            fontWeight: '600',
-                            color: '#334155',
-                            fontSize: '0.9rem'
-                        }}>Email Address</label>
-                        <input
-                            type="email"
-                            name="email"
-                            required
-                            value={formData.email}
-                            onChange={handleChange}
-                            style={{
-                                width: '100%',
-                                padding: '12px 16px',
-                                borderRadius: '8px',
-                                border: '1px solid #cbd5e1',
-                                fontSize: '1rem',
-                                outline: 'none',
-                                transition: 'border-color 0.2s',
-                                backgroundColor: 'white'
-                            }}
-                            placeholder="name@example.com"
-                            onFocus={(e) => e.target.style.borderColor = '#6366f1'}
-                            onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
-                        />
-                    </div>
+                    <form onSubmit={handleSubmit}>
+                        {error && (
+                            <div className="shake" style={{
+                                backgroundColor: '#fee2e2',
+                                color: '#dc2626',
+                                padding: '14px',
+                                borderRadius: '12px',
+                                marginBottom: '24px',
+                                fontSize: '0.9rem',
+                                fontWeight: '600',
+                                textAlign: 'center',
+                                border: '1px solid #fecaca'
+                            }}>
+                                {error}
+                            </div>
+                        )}
 
-                    <div style={{ marginBottom: '32px' }}>
-                        <label style={{
-                            display: 'block',
-                            marginBottom: '6px',
-                            fontWeight: '600',
-                            color: '#334155',
-                            fontSize: '0.9rem'
-                        }}>Password</label>
-                        <div style={{ position: 'relative' }}>
+                        <div style={{ marginBottom: '20px' }}>
+                            <label htmlFor="username" style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Username</label>
                             <input
-                                type={showPassword ? "text" : "password"}
-                                name="password"
+                                id="username"
+                                type="text"
+                                className="search-input"
+                                placeholder="Choose a unique username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
                                 required
-                                value={formData.password}
-                                onChange={handleChange}
                                 style={{
                                     width: '100%',
                                     padding: '12px 16px',
-                                    paddingRight: '46px', // Space for the eye icon
-                                    borderRadius: '8px',
-                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '12px',
+                                    border: '1px solid #d1d5db',
                                     fontSize: '1rem',
-                                    outline: 'none',
-                                    transition: 'border-color 0.2s',
-                                    backgroundColor: 'white'
+                                    outline: 'none'
                                 }}
-                                placeholder="Create a strong password"
-                                onFocus={(e) => e.target.style.borderColor = '#6366f1'}
-                                onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
                             />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                style={{
-                                    position: 'absolute',
-                                    right: '16px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    padding: 0,
-                                    color: '#64748b',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}
-                            >
-                                {showPassword ? (
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                                    </svg>
-                                ) : (
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                        <circle cx="12" cy="12" r="3"></circle>
-                                    </svg>
-                                )}
-                            </button>
                         </div>
+
+                        <div style={{ marginBottom: '20px' }}>
+                            <label htmlFor="password" style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Password</label>
+                            <input
+                                id="password"
+                                type="password"
+                                className="search-input"
+                                placeholder="Minimum 8 characters"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 16px',
+                                    borderRadius: '12px',
+                                    border: '1px solid #d1d5db',
+                                    fontSize: '1rem',
+                                    outline: 'none'
+                                }}
+                            />
+                        </div>
+
+                        <div style={{ marginBottom: '32px' }}>
+                            <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Confirm Password</label>
+                            <input
+                                id="confirmPassword"
+                                type="password"
+                                className="search-input"
+                                placeholder="Re-enter your password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 16px',
+                                    borderRadius: '12px',
+                                    border: '1px solid #d1d5db',
+                                    fontSize: '1rem',
+                                    outline: 'none'
+                                }}
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="btn btn-primary"
+                            style={{
+                                width: '100%',
+                                padding: '16px',
+                                borderRadius: '14px',
+                                fontSize: '1.15rem',
+                                fontWeight: '700',
+                                backgroundColor: 'var(--secondary)',
+                                border: 'none',
+                                color: 'white',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Register Identity
+                        </button>
+                    </form>
+
+                    <div style={{ marginTop: '32px', textAlign: 'center', fontSize: '1rem', color: '#6b7280' }}>
+                        Already have access? {' '}
+                        <Link to="/login" style={{ color: 'var(--primary)', fontWeight: '700', textDecoration: 'none' }}>
+                            Sign In
+                        </Link>
                     </div>
-
-                    <button
-                        type="submit"
-                        className="btn"
-                        style={{
-                            width: '100%',
-                            padding: '14px',
-                            fontSize: '1rem',
-                            fontWeight: '600',
-                            background: 'linear-gradient(90deg, #8b5cf6 0%, #d946ef 100%)',
-                            color: 'white',
-                            borderRadius: '50px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
-                        }}
-                    >
-                        Get Started
-                    </button>
-                </form>
-
-                <div style={{ marginTop: '24px', fontSize: '0.9rem', color: '#64748b' }}>
-                    Already have an account? <Link to="/login" style={{ color: '#6366f1', textDecoration: 'none', fontWeight: '600' }}>Log In</Link>
                 </div>
             </div>
+            
+            <style>
+            {`
+                @media (max-width: 950px) {
+                    .login-hero { display: none !important; }
+                }
+            `}
+            </style>
         </div>
     );
 };

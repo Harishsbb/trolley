@@ -24,10 +24,13 @@ ChartJS.register(
 
 const Dashboard = () => {
     const [products, setProducts] = useState([]);
-    const [formData, setFormData] = useState({ name: '', price: '', qty: '', imageUrl: '', category: 'Snacks', barcode: '' });
+    const [offers, setOffers] = useState([]);
+    const [formData, setFormData] = useState({ name: '', price: '', qty: '', imageUrl: '', category: 'Snacks', barcode: '', barcode_type: 'EAN_13' });
+    const [offerFormData, setOfferFormData] = useState({ title: '', product_name: '', image: '', discount_label: '', tagline: '', color: '#4f46e5', offer_type: 'pct', offer_value: 0 });
     const [removeName, setRemoveName] = useState('');
     const [loading, setLoading] = useState(true);
-    const [editingProduct, setEditingProduct] = useState(null); // { id, name, price, barcode, image, category }
+    const [editingProduct, setEditingProduct] = useState(null); // { id, name, price, barcode, barcode_type, image, category }
+    const [editingOffer, setEditingOffer] = useState(null);
 
     // Helper: Auto-categorize based on name if category is missing
     const getCategory = (p) => {
@@ -77,6 +80,15 @@ const Dashboard = () => {
         'Others'
     ];
 
+    const BARCODE_TYPES = [
+        'EAN_13',
+        'EAN_8',
+        'UPC_A',
+        'UPC_E',
+        'CODE_128',
+        'QR_CODE'
+    ];
+
     const fetchStock = async (isBackground = false) => {
         if (!isBackground) setLoading(true);
         try {
@@ -89,8 +101,18 @@ const Dashboard = () => {
         }
     };
 
+    const fetchOffers = async () => {
+        try {
+            const res = await axios.get('/api/offers');
+            setOffers(res.data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     useEffect(() => {
         fetchStock();
+        fetchOffers();
     }, []);
 
     const findImage = () => {
@@ -113,7 +135,7 @@ const Dashboard = () => {
         };
 
         setProducts(prev => [newProd, ...prev]);
-        setFormData({ name: '', price: '', qty: '', imageUrl: '', category: 'Snacks', barcode: '' });
+        setFormData({ name: '', price: '', qty: '', imageUrl: '', category: 'Snacks', barcode: '', barcode_type: 'EAN_13' });
 
         try {
             await axios.post('/api/product/add', {
@@ -122,7 +144,8 @@ const Dashboard = () => {
                 barcode: newProd.barcodedata,
                 image_url: formData.imageUrl,
                 quantity: newProd.quantity,
-                category: newProd.category
+                category: newProd.category,
+                barcode_type: formData.barcode_type
             });
             // Silent refresh to get real ID/data
             fetchStock(true);
@@ -246,6 +269,7 @@ const Dashboard = () => {
             name: p.product_name || p.name,
             price: p.product_price || p.price,
             barcode: p.barcodedata,
+            barcode_type: p.barcode_type || 'EAN_13',
             image: p.image,
             category: p.category || getCategory(p) || 'Snacks'
         });
@@ -260,6 +284,7 @@ const Dashboard = () => {
             product_name: editingProduct.name,
             product_price: parseFloat(editingProduct.price),
             barcodedata: editingProduct.barcode,
+            barcode_type: editingProduct.barcode_type,
             image: editingProduct.image,
             category: editingProduct.category,
             // Preserve existing fields we aren't editing
@@ -275,6 +300,7 @@ const Dashboard = () => {
                 name: editingProduct.name,
                 price: editingProduct.price,
                 barcode: editingProduct.barcode,
+                barcode_type: editingProduct.barcode_type,
                 image: editingProduct.image,
                 category: editingProduct.category
             });
@@ -282,6 +308,41 @@ const Dashboard = () => {
         } catch (err) {
             alert('Failed to update product');
             fetchStock(true); // Revert on error
+        }
+    };
+
+    const handleAddOffer = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.post('/api/offer/add', offerFormData);
+            setOfferFormData({ title: '', product_name: '', image: '', discount_label: '', tagline: '', color: '#4f46e5', offer_type: 'pct', offer_value: 0 });
+            fetchOffers();
+        } catch (err) {
+            alert('Failed to add offer');
+        }
+    };
+
+    const handleEditOfferSave = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.post('/api/offer/edit', {
+                id: editingOffer._id,
+                ...editingOffer
+            });
+            setEditingOffer(null);
+            fetchOffers();
+        } catch (err) {
+            alert('Failed to update offer');
+        }
+    };
+
+    const handleRemoveOffer = async (id) => {
+        if (!window.confirm('Are you sure you want to remove this offer?')) return;
+        try {
+            await axios.post('/api/offer/remove', { id });
+            fetchOffers();
+        } catch (err) {
+            alert('Failed to remove offer');
         }
     };
 
@@ -315,7 +376,7 @@ const Dashboard = () => {
                         color: 'white', fontSize: '1.2rem', flexShrink: 0
                     }}>🛍️</div>
                     <span className="dashboard-title" style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.025em', color: '#1e293b' }}>
-                        SnapShop <span style={{ fontWeight: '400', color: '#64748b' }}>Admin</span>
+                        Self Shopping Smart Trolley <span style={{ fontWeight: '400', color: '#64748b' }}>Admin</span>
                     </span>
                 </div>
                 <Link to="/home" style={{
@@ -379,15 +440,29 @@ const Dashboard = () => {
                                 />
                             </div>
 
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Barcode (Optional)</label>
-                                <input
-                                    type="text"
-                                    placeholder="Scan or enter barcode"
-                                    style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none' }}
-                                    value={formData.barcode}
-                                    onChange={e => setFormData({ ...formData, barcode: e.target.value })}
-                                />
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Barcode (Optional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Scan or enter barcode"
+                                        style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none' }}
+                                        value={formData.barcode}
+                                        onChange={e => setFormData({ ...formData, barcode: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>Type</label>
+                                    <select
+                                        value={formData.barcode_type}
+                                        onChange={e => setFormData({ ...formData, barcode_type: e.target.value })}
+                                        style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '0.95rem', border: '1px solid #cbd5e1', width: '100%', outline: 'none', background: 'white', color: '#1e293b' }}
+                                    >
+                                        {BARCODE_TYPES.map(type => (
+                                            <option key={type} value={type}>{type}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1fr) 2fr', gap: '16px' }}>
@@ -653,6 +728,131 @@ const Dashboard = () => {
                     );
                 })}
 
+                {/* --- Manage Offers Section --- */}
+                <div style={{
+                    marginTop: '60px',
+                    padding: '32px',
+                    background: 'white',
+                    borderRadius: '24px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                    border: '1px solid #e2e8f0'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+                        <div style={{
+                            width: '48px', height: '48px', borderRadius: '12px',
+                            background: '#fef3c7', color: '#d97706',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>✨</div>
+                        <div>
+                            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#1e293b' }}>Manage Mascot Special Offers</h3>
+                            <p style={{ margin: '4px 0 0', fontSize: '0.9rem', color: '#64748b' }}>Configure the floating ads appearing in the shop</p>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
+                        {/* Add Offer Form */}
+                        <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                            <h4 style={{ margin: '0 0 20px 0', fontSize: '1.1rem', fontWeight: '700' }}>Add New Offer</h4>
+                            <form onSubmit={handleAddOffer} style={{ display: 'grid', gap: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: '#64748b' }}>Badge Title (e.g. Flash Offer! 🔥)</label>
+                                    <input required value={offerFormData.title} onChange={e => setOfferFormData({ ...offerFormData, title: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: '#64748b' }}>Target Product Name</label>
+                                    <select 
+                                        required 
+                                        value={offerFormData.product_name} 
+                                        onChange={e => setOfferFormData({ ...offerFormData, product_name: e.target.value })} 
+                                        style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}
+                                    >
+                                        <option value="">-- Select Product --</option>
+                                        {Array.from(new Set(products.map(p => p.product_name || p.name))).sort().map(name => (
+                                            <option key={name} value={name}>{name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: '#64748b' }}>Discount Label</label>
+                                        <input required value={offerFormData.discount_label} onChange={e => setOfferFormData({ ...offerFormData, discount_label: e.target.value })} placeholder="50% OFF" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: '#64748b' }}>Banner Color</label>
+                                        <input type="color" value={offerFormData.color} onChange={e => setOfferFormData({ ...offerFormData, color: e.target.value })} style={{ width: '100%', height: '42px', padding: '4px', borderRadius: '8px', border: '1px solid #cbd5e1', cursor: 'pointer' }} />
+                                    </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: '#64748b' }}>Offer Type</label>
+                                        <select value={offerFormData.offer_type} onChange={e => setOfferFormData({...offerFormData, offer_type: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                                            <option value="pct">Percentage (%)</option>
+                                            <option value="flat">Flat Discount (₹)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: '#64748b' }}>Value</label>
+                                        <input type="number" required value={offerFormData.offer_value} onChange={e => setOfferFormData({ ...offerFormData, offer_value: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: '#64748b' }}>Tagline</label>
+                                    <input value={offerFormData.tagline} onChange={e => setOfferFormData({ ...offerFormData, tagline: e.target.value })} placeholder="Tap to add to cart!" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: '#64748b' }}>Image URL</label>
+                                    <input value={offerFormData.image} onChange={e => setOfferFormData({ ...offerFormData, image: e.target.value })} placeholder="Leave empty for auto-search from inventory" style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                </div>
+                                <button type="submit" style={{ padding: '12px', borderRadius: '10px', border: 'none', background: '#d97706', color: 'white', fontWeight: '700', cursor: 'pointer', marginTop: '8px' }}>Create Offer</button>
+                            </form>
+                        </div>
+
+                        {/* Offers List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <h4 style={{ margin: '0', fontSize: '1.1rem', fontWeight: '700' }}>Active Offers ({offers.length})</h4>
+                            <div style={{ display: 'grid', gap: '16px', maxHeight: '600px', overflowY: 'auto', paddingRight: '8px' }}>
+                                {offers.map(off => (
+                                    <div key={off._id} style={{ 
+                                        background: 'white', 
+                                        borderRadius: '16px', 
+                                        padding: '16px', 
+                                        border: '1px solid #e2e8f0',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '16px',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                                    }}>
+                                        <div style={{ 
+                                            width: '60px', height: '60px', borderRadius: '10px', 
+                                            background: '#f1f5f9', padding: '8px', flexShrink: 0
+                                        }}>
+                                            <img 
+                                                src={off.image || 'https://placehold.co/100'} 
+                                                onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/400x400/f1f5f9/94a3b8.png?text=${encodeURIComponent(off.product_name)}` }}
+                                                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                                                alt="" 
+                                            />
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span style={{ fontSize: '0.7rem', fontWeight: '800', padding: '2px 6px', borderRadius: '4px', background: off.color, color: 'white' }}>{off.title}</span>
+                                                <h5 style={{ margin: 0, fontWeight: '700' }}>{off.product_name}</h5>
+                                            </div>
+                                            <div style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: '800', marginTop: '4px' }}>{off.discount_label} | {off.offer_type === 'pct' ? `${off.offer_value}% OFF` : `₹${off.offer_value} OFF`}</div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{off.tagline}</div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button onClick={() => setEditingOffer(off)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer' }}>✏️</button>
+                                            <button onClick={() => handleRemoveOffer(off._id)} style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #fee2e2', background: 'white', color: '#ef4444', cursor: 'pointer' }}>🗑️</button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {offers.length === 0 && <p style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>No offers configured yet.</p>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {products.length === 0 && !loading && (
                     <div style={{ textAlign: 'center', padding: '60px', opacity: 0.6 }}>
                         <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📦</div>
@@ -713,17 +913,98 @@ const Dashboard = () => {
                                     style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                                 />
                             </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Barcode</label>
-                                <input
-                                    value={editingProduct.barcode}
-                                    onChange={e => setEditingProduct({ ...editingProduct, barcode: e.target.value })}
-                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                                />
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Barcode</label>
+                                    <input
+                                        value={editingProduct.barcode}
+                                        onChange={e => setEditingProduct({ ...editingProduct, barcode: e.target.value })}
+                                        style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Type</label>
+                                    <select
+                                        value={editingProduct.barcode_type}
+                                        onChange={e => setEditingProduct({ ...editingProduct, barcode_type: e.target.value })}
+                                        style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}
+                                    >
+                                        {BARCODE_TYPES.map(type => (
+                                            <option key={type} value={type}>{type}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                                 <button type="button" onClick={() => setEditingProduct(null)} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#f1f5f9', color: '#64748b', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
                                 <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#4f46e5', color: 'white', fontWeight: '600', cursor: 'pointer' }}>Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* Edit Offer Modal */}
+            {editingOffer && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', zIndex: 1001,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    backdropFilter: 'blur(4px)'
+                }}>
+                    <div style={{
+                        background: 'white', borderRadius: '24px', padding: '32px',
+                        width: '90%', maxWidth: '500px',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+                    }}>
+                        <h3 style={{ marginTop: 0, fontSize: '1.5rem', color: '#1e293b' }}>Edit Special Offer</h3>
+                        <form onSubmit={handleEditOfferSave} style={{ display: 'grid', gap: '16px' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Title</label>
+                                <input value={editingOffer.title} onChange={e => setEditingOffer({...editingOffer, title: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Product Name</label>
+                                <select 
+                                    required
+                                    value={editingOffer.product_name} 
+                                    onChange={e => setEditingOffer({...editingOffer, product_name: e.target.value})} 
+                                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}
+                                >
+                                    {Array.from(new Set(products.map(p => p.product_name || p.name))).sort().map(name => (
+                                        <option key={name} value={name}>{name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Discount Label</label>
+                                    <input value={editingOffer.discount_label} onChange={e => setEditingOffer({...editingOffer, discount_label: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Color</label>
+                                    <input type="color" value={editingOffer.color} onChange={e => setEditingOffer({...editingOffer, color: e.target.value})} style={{ width: '100%', height: '45px', padding: '4px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }} />
+                                </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Type</label>
+                                    <select value={editingOffer.offer_type} onChange={e => setEditingOffer({...editingOffer, offer_type: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white' }}>
+                                        <option value="pct">Percentage (%)</option>
+                                        <option value="flat">Flat (₹)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Value</label>
+                                    <input type="number" value={editingOffer.offer_value} onChange={e => setEditingOffer({...editingOffer, offer_value: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                </div>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px', color: '#64748b' }}>Tagline</label>
+                                <input value={editingOffer.tagline} onChange={e => setEditingOffer({...editingOffer, tagline: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                                <button type="button" onClick={() => setEditingOffer(null)} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#f1f5f9', color: '#64748b', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+                                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#d97706', color: 'white', fontWeight: '600', cursor: 'pointer' }}>Save Offer</button>
                             </div>
                         </form>
                     </div>

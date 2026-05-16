@@ -27,7 +27,7 @@ const ProductDetails = () => {
             // Fallback to fetch if not in cache (fresh catalog fetch)
             const fetchProduct = async () => {
                 try {
-                    const res = await axios.get('/search?query=');
+                    const res = await axios.get('/api/search?query=');
                     const found = res.data.find(p => String(p.id) === String(id));
                     if (found) {
                         setProduct(found);
