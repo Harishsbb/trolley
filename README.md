@@ -8,6 +8,10 @@
 [![Vercel Ready](https://img.shields.io/badge/Deployment-Vercel-black?logo=vercel&logoColor=white)](https://vercel.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+<p align="center">
+  <img src="assets/smart_trolley_banner.jpg" alt="Smart Trolley System Preview" width="100%" />
+</p>
+
 An intelligent, self-checkout smart trolley and automated supermarket billing solution designed to eliminate long billing queues, enhance the retail shopping experience, and provide store administrators with real-time inventory management.
 
 ---
@@ -163,6 +167,8 @@ trolley/
 │   ├── vite.config.js        # Vite dev server proxy configuration
 │   └── vercel.json           # Frontend routing rewrite configuration
 │
+├── assets/                   # Showcase banners and documentation assets
+│   └── smart_trolley_banner.jpg
 ├── .gitignore                # Ignored build artifacts and environment files
 └── README.md                 # Project documentation
 ```
